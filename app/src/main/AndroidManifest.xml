@@ -8,6 +8,20 @@
     -->
     <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
 
+    <!--
+        WorkManager приносит с собой четыре разрешения. Два из них нам не нужны:
+        работа с уведомлением на переднем плане не запускается нигде, а
+        перепланирование после перезагрузки не требуется — импорт живёт в очереди
+        в базе и продолжится при следующем запуске.
+        Остаются WAKE_LOCK (без него воркер падает с SecurityException) и
+        ACCESS_NETWORK_STATE (читает только состояние сети; выхода в сеть нет,
+        INTERNET удалён выше).
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission
+        android:name="android.permission.RECEIVE_BOOT_COMPLETED"
+        tools:node="remove" />
+
     <application
         android:name=".BibliariumApp"
         android:allowBackup="true"

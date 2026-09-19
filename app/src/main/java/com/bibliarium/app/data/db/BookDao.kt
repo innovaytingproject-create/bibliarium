@@ -7,6 +7,18 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/** Размер и хэш начала файла — этого хватает, чтобы узнать уже добавленную книгу. */
+data class FingerprintRow(
+    val fileSize: Long,
+    val headHash: String,
+)
+
+/** Книга, добавленная до появления отпечатков: хэш нужно досчитать. */
+data class MissingFingerprintRow(
+    val id: String,
+    val filePath: String,
+)
+
 @Dao
 interface BookDao {
 
@@ -25,6 +37,15 @@ interface BookDao {
 
     @Query("SELECT COUNT(*) FROM books")
     fun observeCount(): Flow<Int>
+
+    @Query("SELECT fileSize, headHash FROM books WHERE headHash IS NOT NULL")
+    suspend fun fingerprints(): List<FingerprintRow>
+
+    @Query("SELECT id, filePath FROM books WHERE headHash IS NULL")
+    suspend fun missingFingerprints(): List<MissingFingerprintRow>
+
+    @Query("UPDATE books SET fileSize = :size, headHash = :hash WHERE id = :id")
+    suspend fun setFingerprint(id: String, size: Long, hash: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(book: BookEntity)

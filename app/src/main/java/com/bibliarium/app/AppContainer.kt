@@ -3,7 +3,12 @@ package com.bibliarium.app
 import android.content.Context
 import androidx.room.Room
 import com.bibliarium.app.data.db.BibliariumDatabase
+import com.bibliarium.app.data.db.ImportQueueDao
+import com.bibliarium.app.data.importer.BatchImporter
 import com.bibliarium.app.data.importer.BookImporter
+import com.bibliarium.app.data.scan.DeviceScanner
+import com.bibliarium.app.data.scan.ScanMetadataReader
+import com.bibliarium.app.data.settings.AppSettings
 import com.bibliarium.app.data.store.BookStore
 import com.bibliarium.app.data.store.HighlightStore
 import com.bibliarium.app.data.store.LocalBookStore
@@ -26,6 +31,7 @@ class AppContainer(context: Context) {
 
     private val database: BibliariumDatabase by lazy {
         Room.databaseBuilder(appContext, BibliariumDatabase::class.java, BibliariumDatabase.NAME)
+            .addMigrations(BibliariumDatabase.MIGRATION_1_2)
             .build()
     }
 
@@ -62,4 +68,18 @@ class AppContainer(context: Context) {
     val bookStore: BookStore by lazy { LocalBookStore(database.bookDao(), bookImporter) }
 
     val highlightStore: HighlightStore by lazy { LocalHighlightStore(database.highlightDao()) }
+
+    val importQueueDao: ImportQueueDao by lazy { database.importQueueDao() }
+
+    val settings: AppSettings by lazy { AppSettings(appContext) }
+
+    private val scanMetadataReader by lazy {
+        ScanMetadataReader(appContext, assetRetriever, publicationOpener)
+    }
+
+    val deviceScanner: DeviceScanner by lazy {
+        DeviceScanner(appContext, bookImporter, scanMetadataReader)
+    }
+
+    val batchImporter: BatchImporter by lazy { BatchImporter(appContext, importQueueDao) }
 }

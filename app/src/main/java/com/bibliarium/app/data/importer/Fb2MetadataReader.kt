@@ -3,12 +3,16 @@ package com.bibliarium.app.data.importer
 import android.util.Base64
 import android.util.Xml
 import java.io.File
+import java.io.InputStream
 import org.xmlpull.v1.XmlPullParser
 
 /**
- * Readium не поддерживает FB2 (проверено по списку форматов toolkit 3.4.0),
+ * Readium не поддерживает FB2 (проверено по списку форматов toolkit),
  * поэтому заголовок, автора, жанр и обложку берём из самого XML.
  * Это не парсер EPUB и не движок рендеринга — только блок <description>.
+ *
+ * Работает от фабрики потоков, а не от файла: при поиске по телефону книга
+ * лежит за content://, а внутри .fb2.zip — вообще за записью архива.
  */
 object Fb2MetadataReader {
 
@@ -19,7 +23,11 @@ object Fb2MetadataReader {
         val coverId: String?,
     )
 
-    fun read(file: File): Fb2Metadata {
+    fun read(file: File): Fb2Metadata = read { file.inputStream() }
+
+    fun readBinary(file: File, id: String): ByteArray? = readBinary({ file.inputStream() }, id)
+
+    fun read(openStream: () -> InputStream): Fb2Metadata {
         var title: String? = null
         var genre: String? = null
         var firstName: String? = null
@@ -32,7 +40,7 @@ object Fb2MetadataReader {
         var inCoverpage = false
 
         runCatching {
-            file.inputStream().buffered().use { input ->
+            openStream().buffered().use { input ->
                 val parser = Xml.newPullParser()
                 parser.setInput(input, null)
                 var event = parser.eventType
@@ -89,9 +97,9 @@ object Fb2MetadataReader {
     }
 
     /** Обложка FB2 лежит в <binary> в base64 в конце файла. */
-    fun readBinary(file: File, id: String): ByteArray? {
+    fun readBinary(openStream: () -> InputStream, id: String): ByteArray? {
         runCatching {
-            file.inputStream().buffered().use { input ->
+            openStream().buffered().use { input ->
                 val parser = Xml.newPullParser()
                 parser.setInput(input, null)
                 var event = parser.eventType

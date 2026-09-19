@@ -21,6 +21,8 @@ fun BookEntity.toDomain(): Book = Book(
     genre = genre,
     shelfId = shelfId,
     isFavorite = isFavorite,
+    fileSize = fileSize,
+    headHash = headHash,
 )
 
 fun Book.toEntity(): BookEntity = BookEntity(
@@ -38,6 +40,8 @@ fun Book.toEntity(): BookEntity = BookEntity(
     genre = genre,
     shelfId = shelfId,
     isFavorite = isFavorite,
+    fileSize = fileSize,
+    headHash = headHash,
 )
 
 fun HighlightEntity.toDomain(): Highlight = Highlight(

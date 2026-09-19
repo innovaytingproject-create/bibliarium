@@ -19,4 +19,11 @@ interface BookStore {
     suspend fun openContent(id: String): ByteArray
 
     suspend fun get(id: String): Book?
+
+    /**
+     * Отпечатки всех книг библиотеки: размер -> набор хэшей начала файла.
+     * По ним поиск по телефону понимает, что книга уже добавлена. Заодно
+     * дозаполняет отпечатки записей, созданных до их появления.
+     */
+    suspend fun fingerprints(): Map<Long, Set<String>>
 }

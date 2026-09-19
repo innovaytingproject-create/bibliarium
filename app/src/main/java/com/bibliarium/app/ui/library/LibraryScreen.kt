@@ -1,8 +1,5 @@
 package com.bibliarium.app.ui.library
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +50,7 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
+    onAddBook: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val books by viewModel.books.collectAsStateWithLifecycle()
@@ -65,10 +63,6 @@ fun LibraryScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
-
-    val picker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri: Uri? -> uri?.let(viewModel::import) }
 
     LaunchedEffect(message) {
         val current = message ?: return@LaunchedEffect
@@ -122,7 +116,7 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
                 Button(
-                    onClick = { picker.launch(arrayOf("*/*")) },
+                    onClick = onAddBook,
                     enabled = !isImporting,
                     shape = RoundedCornerShape(BibliariumTheme.shapes.button),
                     colors = ButtonDefaults.buttonColors(

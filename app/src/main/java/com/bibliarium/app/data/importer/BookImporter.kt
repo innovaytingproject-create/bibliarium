@@ -14,7 +14,6 @@ import java.util.zip.ZipInputStream
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
 import org.readium.r2.shared.publication.services.cover
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
@@ -45,8 +44,15 @@ class BookImporter(
         val zipped: Boolean,
     )
 
+    /** Имя и размер документа за content://. */
+    data class DocumentInfo(
+        val displayName: String?,
+        val sizeBytes: Long,
+    )
+
     suspend fun import(uri: Uri): Result<Book> = withContext(Dispatchers.IO) {
-        val displayName = resolveDisplayName(uri)
+        val document = queryDocument(uri)
+        val displayName = document.displayName
         val kind = detectKind(displayName)
             ?: return@withContext Result.failure(ImportException(ImportFailure.UNKNOWN_FORMAT))
 
@@ -58,6 +64,10 @@ class BookImporter(
         val target = File(booksDir, "$id.${kind.format.extension}")
 
         try {
+            // Отпечаток снимаем с исходного файла до распаковки: повторный поиск
+            // сравнивает именно то, что лежит на телефоне.
+            val fingerprint = sourceFingerprint(uri, document.sizeBytes)
+
             if (kind.zipped) {
                 extractFb2(uri, target)
             } else {
@@ -89,6 +99,8 @@ class BookImporter(
                 genre = metadata.genre?.takeIf { it.isNotBlank() },
                 shelfId = null,
                 isFavorite = false,
+                fileSize = fingerprint?.sizeBytes ?: document.sizeBytes,
+                headHash = fingerprint?.headHash,
             )
             Result.success(book)
         } catch (e: ImportException) {
@@ -99,6 +111,17 @@ class BookImporter(
             Result.failure(ImportException(ImportFailure.STORAGE_FAILED, e))
         }
     }
+
+    /** Отпечаток исходного документа; null, если файл не читается. */
+    fun sourceFingerprint(uri: Uri, sizeBytes: Long): BookFingerprint? = runCatching {
+        val stream = context.contentResolver.openInputStream(uri) ?: return null
+        BookFingerprint(sizeBytes = sizeBytes, headHash = Fingerprints.headHash(stream))
+    }.getOrNull()
+
+    /** Отпечаток уже сохранённого в библиотеке файла — для дозаполнения старых записей. */
+    fun fileFingerprint(file: File): BookFingerprint? = runCatching {
+        BookFingerprint(sizeBytes = file.length(), headHash = Fingerprints.headHash(file.inputStream()))
+    }.getOrNull()
 
     /**
      * У русских книг самый частый вид — .fb2.zip, поэтому zip разбирается наравне
@@ -125,7 +148,7 @@ class BookImporter(
     /**
      * Распаковка идёт потоком сразу в целевой файл: ни временного файла на диске,
      * ни книги целиком в памяти. Имена записей читаем как ISO-8859-1 — в русских
-     * архивах они бывают в CP866, а разбор UTF-8 на таких именах падает; суффикс
+     * архивах они бывают в CP866, и разбор UTF-8 на таких именах падает; суффикс
      * .fb2 всё равно ASCII, так что проверка не страдает.
      */
     private fun extractFb2(uri: Uri, target: File) {
@@ -216,16 +239,29 @@ class BookImporter(
         return name.ifBlank { target.name }
     }
 
-    private fun resolveDisplayName(uri: Uri): String? {
+    fun queryDocument(uri: Uri): DocumentInfo {
         context.contentResolver
-            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            .query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+                null,
+                null,
+                null,
+            )
             ?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (index >= 0) return cursor.getString(index)
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    val name = if (nameIndex >= 0) cursor.getString(nameIndex) else null
+                    val size = if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) {
+                        cursor.getLong(sizeIndex)
+                    } else {
+                        0L
+                    }
+                    return DocumentInfo(name ?: uri.lastPathSegment, size)
                 }
             }
-        return uri.lastPathSegment
+        return DocumentInfo(uri.lastPathSegment, 0L)
     }
 
     private companion object {

@@ -50,4 +50,19 @@ class LocalBookStore(
     override suspend fun get(id: String): Book? = withContext(io) {
         bookDao.findById(id)?.toDomain()
     }
+
+    override suspend fun fingerprints(): Map<Long, Set<String>> = withContext(io) {
+        // Книги, добавленные до появления отпечатков, досчитываем по сохранённому файлу.
+        // Для обычных EPUB и FB2 он побайтово равен исходному, так что отпечаток совпадёт.
+        // Исключение — книги, добавленные из .fb2.zip до этого этапа: в filesDir лежит
+        // распакованный fb2, и повторный поиск предложит такой архив ещё раз.
+        bookDao.missingFingerprints().forEach { row ->
+            val fingerprint = importer.fileFingerprint(File(row.filePath)) ?: return@forEach
+            bookDao.setFingerprint(row.id, fingerprint.sizeBytes, fingerprint.headHash)
+        }
+
+        bookDao.fingerprints()
+            .groupBy({ it.fileSize }, { it.headHash })
+            .mapValues { (_, hashes) -> hashes.toSet() }
+    }
 }

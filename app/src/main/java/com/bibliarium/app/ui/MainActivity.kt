@@ -2,14 +2,34 @@ package com.bibliarium.app.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bibliarium.app.AppContainer
 import com.bibliarium.app.appContainer
+import com.bibliarium.app.ui.add.AddBookScreen
 import com.bibliarium.app.ui.library.LibraryScreen
 import com.bibliarium.app.ui.library.LibraryViewModel
+import com.bibliarium.app.ui.scan.ScanScreen
+import com.bibliarium.app.ui.scan.ScanViewModel
 import com.bibliarium.app.ui.theme.BibliariumTheme
 import com.bibliarium.app.ui.theme.ThemeVariant
+
+/**
+ * Экранов пока три, поэтому навигация обходится состоянием и BackHandler'ом.
+ * Полноценный граф появится на втором этапе вместе с нижней навигацией.
+ */
+private enum class Screen {
+    LIBRARY,
+    ADD_BOOK,
+    SCAN,
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -22,11 +42,47 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Переключатель тем появится в настройках на шестом этапе.
             BibliariumTheme(variant = ThemeVariant.ARCHIVE) {
-                val viewModel: LibraryViewModel = viewModel(
-                    factory = LibraryViewModel.factory(container),
-                )
-                LibraryScreen(viewModel = viewModel)
+                BibliariumApp(container)
             }
+        }
+    }
+}
+
+@Composable
+private fun BibliariumApp(container: AppContainer) {
+    var screen by rememberSaveable { mutableStateOf(Screen.LIBRARY) }
+
+    val libraryViewModel: LibraryViewModel = viewModel(
+        factory = LibraryViewModel.factory(container),
+    )
+
+    BackHandler(enabled = screen != Screen.LIBRARY) {
+        screen = if (screen == Screen.SCAN) Screen.ADD_BOOK else Screen.LIBRARY
+    }
+
+    when (screen) {
+        Screen.LIBRARY -> LibraryScreen(
+            viewModel = libraryViewModel,
+            onAddBook = { screen = Screen.ADD_BOOK },
+        )
+
+        Screen.ADD_BOOK -> AddBookScreen(
+            onScan = { screen = Screen.SCAN },
+            onFilePicked = { uri ->
+                libraryViewModel.import(uri)
+                screen = Screen.LIBRARY
+            },
+            onBack = { screen = Screen.LIBRARY },
+        )
+
+        Screen.SCAN -> {
+            val scanViewModel: ScanViewModel = viewModel(
+                factory = ScanViewModel.factory(container),
+            )
+            ScanScreen(
+                viewModel = scanViewModel,
+                onBack = { screen = Screen.LIBRARY },
+            )
         }
     }
 }

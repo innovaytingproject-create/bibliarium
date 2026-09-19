@@ -17,6 +17,8 @@ import androidx.room.PrimaryKey
         Index("shelfId"),
         Index("addedAt"),
         Index("lastOpenedAt"),
+        // По размеру отбираются кандидаты на совпадение, прежде чем считать хэш.
+        Index("fileSize"),
     ],
 )
 data class BookEntity(
@@ -34,6 +36,13 @@ data class BookEntity(
     val genre: String?,
     val shelfId: String?,
     val isFavorite: Boolean,
+    /**
+     * Размер и хэш начала ИСХОДНОГО файла — того, который выбрал пользователь,
+     * а не того, что лежит в filesDir. Для .fb2.zip это отпечаток архива:
+     * иначе повторный поиск не узнал бы уже добавленную книгу.
+     */
+    val fileSize: Long,
+    val headHash: String?,
 )
 
 @Entity(
@@ -63,4 +72,26 @@ data class ShelfEntity(
     @PrimaryKey val id: String,
     val name: String,
     val sortOrder: Int,
+)
+
+/**
+ * Очередь пакетного импорта. Лежит в базе, а не в памяти и не в Data воркера,
+ * по трём причинам: импорт переживает сворачивание и смерть процесса, размер
+ * пачки ничем не ограничен, и после завершения видно, что именно не прочиталось.
+ */
+@Entity(
+    tableName = "import_queue",
+    indices = [Index("batchId"), Index("status")],
+)
+data class ImportQueueEntity(
+    @PrimaryKey val id: String,
+    val batchId: String,
+    val uri: String,
+    val displayName: String,
+    val sizeBytes: Long,
+    /** PENDING, DONE, FAILED. */
+    val status: String,
+    /** Имя значения ImportFailure, если status = FAILED. */
+    val failure: String?,
+    val createdAt: Long,
 )

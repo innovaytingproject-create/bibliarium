@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Bibliarium</string>
 
+    <string name="common_back">Назад</string>
+
     <string name="library_add_book">Добавить книгу</string>
     <string name="library_empty_title">Полка пока пуста</string>
     <string name="library_empty_hint">Добавьте книгу в формате EPUB, FB2 или FB2.ZIP — она останется в памяти телефона.</string>
@@ -16,4 +18,52 @@
     <string name="import_error_unreadable">Не удалось прочитать файл.</string>
     <string name="import_error_parse">Файл повреждён — книгу не удалось разобрать.</string>
     <string name="import_error_storage">Не хватило места или не удалось сохранить файл.</string>
+
+    <string name="add_title">Добавить книгу</string>
+    <string name="add_scan">Найти книги на телефоне</string>
+    <string name="add_scan_hint">Приложение обойдёт выбранную папку со всеми вложенными и покажет, что нашло.</string>
+    <string name="add_manual">Выбрать файл вручную</string>
+    <string name="add_manual_hint">Системный выбор одного файла — если вы знаете, где книга лежит.</string>
+
+    <string name="scan_title">Поиск книг</string>
+    <string name="scan_need_root_title">Где искать</string>
+    <string name="scan_need_root_hint">Выберите папку, с которой начать. Можно взять всю память телефона — вложенные папки приложение обойдёт само. Спросим только один раз.</string>
+    <string name="scan_choose_folder">Выбрать папку</string>
+    <string name="scan_change_folder">Сменить папку</string>
+    <string name="scan_start">Начать поиск</string>
+    <string name="scan_cancel">Отмена</string>
+    <string name="scan_repeat">Искать заново</string>
+
+    <string name="scan_progress_walking">Просмотрено %1$d папок, найдено %2$d книг</string>
+    <string name="scan_progress_archives">Проверяем архивы: %1$d из %2$d</string>
+    <string name="scan_progress_matching">Сверяем с библиотекой: %1$d из %2$d</string>
+    <string name="scan_progress_titles">Читаем названия: %1$d из %2$d</string>
+
+    <string name="scan_nothing_title">Ничего не нашлось</string>
+    <string name="scan_nothing_hint">В этой папке нет книг в поддерживаемых форматах. Попробуйте выбрать другую.</string>
+    <string name="scan_all_added_title">Новых книг нет</string>
+    <string name="scan_all_added_hint">Всё, что нашлось, уже есть в библиотеке.</string>
+
+    <string name="scan_selected">Выбрано %1$d из %2$d</string>
+    <string name="scan_select_all">Выбрать все</string>
+    <string name="scan_clear_selection">Снять выделение</string>
+    <string name="scan_only_new">Только новые</string>
+    <string name="scan_show_all">Показать все найденные</string>
+    <string name="scan_already_added">уже добавлена</string>
+    <string name="scan_not_supported_yet">скоро</string>
+    <string name="scan_add_selected">Добавить выбранные</string>
+    <string name="scan_root_folder">Корневая папка</string>
+    <string name="scan_hidden_added">Скрыто уже добавленных: %1$d</string>
+
+    <string name="batch_progress">Добавлено %1$d из %2$d</string>
+    <string name="batch_done_clean">Добавлено %1$d</string>
+    <string name="batch_done_with_errors">Добавлено %1$d, пропущено %2$d</string>
+    <string name="batch_show_problems">Показать пропущенные</string>
+    <string name="batch_hide_problems">Скрыть пропущенные</string>
+    <string name="batch_close">Готово</string>
+    <string name="batch_background_hint">Можно свернуть приложение — импорт не прервётся.</string>
+
+    <string name="size_bytes">%1$d Б</string>
+    <string name="size_kb">%1$s КБ</string>
+    <string name="size_mb">%1$s МБ</string>
 </resources>

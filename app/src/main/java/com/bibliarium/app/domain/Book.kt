@@ -21,6 +21,10 @@ data class Book(
     val genre: String?,
     val shelfId: String?,
     val isFavorite: Boolean,
+    /** Размер исходного файла в байтах. */
+    val fileSize: Long,
+    /** SHA-256 первых 64 КБ исходного файла; null у книг, добавленных до появления отпечатков. */
+    val headHash: String?,
 )
 
 enum class ReadingStatus {

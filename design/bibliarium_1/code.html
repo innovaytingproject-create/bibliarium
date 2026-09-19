@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+
+<html lang="ru"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "outline": "#8a726d", "surface-container": "#f0eee8", "surface-tint": "#a13f2b", "surface-dim": "#dcdad4", "inverse-primary": "#ffb4a4", "on-secondary": "#ffffff", "tertiary": "#535653", "surface-container-low": "#f5f3ed", "on-secondary-container": "#50685b", "surface": "#fbf9f3", "primary-container": "#b44d38", "on-tertiary-fixed-variant": "#454745", "on-error-container": "#93000a", "secondary-fixed": "#cee9d9", "surface-container-highest": "#e4e2dc", "on-primary": "#ffffff", "outline-variant": "#ddc0ba", "error-container": "#ffdad6", "primary": "#943623", "tertiary-container": "#6b6e6b", "secondary": "#4b6457", "tertiary-fixed": "#e1e3df", "on-primary-fixed-variant": "#812816", "on-tertiary": "#ffffff", "surface-container-lowest": "#ffffff", "on-surface": "#1b1c18", "background": "#fbf9f3", "on-background": "#1b1c18", "secondary-container": "#cbe6d6", "on-secondary-fixed-variant": "#344c40", "on-error": "#ffffff", "error": "#ba1a1a", "surface-variant": "#e4e2dc", "primary-fixed": "#ffdad3", "on-tertiary-fixed": "#191c1a", "on-tertiary-container": "#eff1ed", "surface-bright": "#fbf9f3", "on-surface-variant": "#56423e", "inverse-surface": "#30312d", "surface-container-high": "#eae8e2", "primary-fixed-dim": "#ffb4a4", "secondary-fixed-dim": "#b2cdbd", "inverse-on-surface": "#f3f1eb", "on-secondary-fixed": "#082016", "on-primary-container": "#ffece9", "tertiary-fixed-dim": "#c5c7c4", "on-primary-fixed": "#3e0500" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "space-xs": "0.25rem", "gutter": "1rem", "space-lg": "1.25rem", "margin-mobile": "1rem", "space-xl": "1.75rem", "space-2xl": "2.5rem", "margin": "1.25rem", "space-md": "0.875rem", "gutter-shelf": "0.25rem", "space-sm": "0.5rem" }, "fontFamily": { "spine-meta": ["IBM Plex Sans"], "headline-sm": ["Literata"], "headline-md": ["Literata"], "label-lg": ["IBM Plex Sans"], "display-lg": ["Literata"], "body-sm": ["IBM Plex Sans"], "label-md": ["IBM Plex Sans"], "spine-title": ["Literata"], "label-sm": ["IBM Plex Sans"], "headline-lg": ["Literata"], "display-lg-mobile": ["Literata"], "body-md": ["Literata"], "body-lg": ["Literata"] }, "fontSize": { "spine-meta": ["10px", { "lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "600" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "headline-md": ["22px", { "lineHeight": "28px", "fontWeight": "500" }], "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "500" }], "display-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "400" }], "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.03em", "fontWeight": "500" }], "spine-title": ["14px", { "lineHeight": "18px", "letterSpacing": "0.04em", "fontWeight": "500" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "500" }], "display-lg-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "400" }], "body-md": ["15px", { "lineHeight": "23px", "fontWeight": "400" }], "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }] } } } };</script><style>@layer base { html, body { width: 100%; margin: 0; padding: 0; } body { overscroll-behavior-y: none; } .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); } .pt-safe { padding-top: env(safe-area-inset-top, 0px); } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md antialiased min-h-screen flex flex-col"><header class="fixed top-0 w-full z-50 pt-safe bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><span class="text-primary font-headline-md text-headline-md select-none">※</span><h1 class="font-headline-md text-headline-md tracking-tight text-on-surface select-none">Library</h1></div><div class="flex items-center gap-space-xs"><button class="w-11 h-11 flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">tune</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 w-full bg-surface pt-16 pb-20"><div class="flex flex-col w-full">
+<!-- Interactive Shelf Controls & Reading Stats Header -->
+<section class="px-margin pt-space-xs pb-space-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-md text-headline-md text-on-surface">Полка I</span>
+<span class="font-label-sm text-label-sm text-tertiary uppercase tracking-widest">• 17 книг</span>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container px-space-sm py-1 rounded-full">
+<button class="flex items-center justify-center p-1 text-primary transition-colors" id="view-spine-btn" title="Корешки">
+<span class="material-symbols-outlined text-[18px]">view_column</span>
+</button>
+<button class="flex items-center justify-center p-1 text-tertiary hover:text-on-surface transition-colors" id="view-grid-btn" title="Сетка">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+</button>
+</div>
+</div>
+<!-- Editorial Horizontal Filter Strip -->
+<div class="flex items-center gap-space-md overflow-x-auto no-scrollbar py-1">
+<button class="filter-tab active flex items-center gap-1 font-label-md text-label-md text-on-surface whitespace-nowrap relative pb-1">
+<span>Все издания</span>
+<span class="text-[9px] text-primary font-bold">※</span>
+<span class="absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-full"></span>
+</button>
+<button class="filter-tab flex items-center gap-1 font-label-md text-label-md text-tertiary hover:text-on-surface whitespace-nowrap transition-colors pb-1">
+<span>Читаю</span>
+<span class="font-spine-meta text-spine-meta text-secondary px-1.5 py-0.2 bg-secondary-container rounded-full">3</span>
+</button>
+<button class="filter-tab flex items-center gap-1 font-label-md text-label-md text-tertiary hover:text-on-surface whitespace-nowrap transition-colors pb-1">
+<span>Прочитано</span>
+</button>
+<button class="filter-tab flex items-center gap-1 font-label-md text-label-md text-tertiary hover:text-on-surface whitespace-nowrap transition-colors pb-1">
+<span>Избранное</span>
+</button>
+</div>
+</section>
+<!-- Bookshelf Tier 1 -->
+<section class="w-full flex flex-col pt-space-xs pb-space-lg select-none">
+<div class="px-margin flex items-center justify-between mb-2">
+<div class="flex items-center gap-1 text-tertiary">
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Ярус A • Классика и Эпос</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary">IX томов</span>
+</div>
+<!-- Shelf Spines Track: Tier 1 -->
+<div class="w-full overflow-x-auto no-scrollbar px-margin pt-2 flex items-end">
+<div class="flex items-end flex-nowrap" id="shelf-tier-1">
+<!-- Spine 1: Дюна (Terracotta) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-primary-container text-on-primary shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 38px; height: 260px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.25), inset 2px 0 2px rgba(255,255,255,0.15);">
+<div class="flex flex-col items-center gap-1">
+<span class="font-spine-meta text-spine-meta opacity-70">✦</span>
+<span class="font-spine-meta text-spine-meta opacity-90">Ф. Г.</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2 overflow-hidden">
+<span class="font-spine-title text-spine-title font-medium tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Дюна
+            </span>
+</div>
+<div class="flex flex-col items-center gap-1.5 opacity-75">
+<span class="font-spine-meta text-spine-meta tracking-tighter">I</span>
+<span class="w-2.5 h-[1px] bg-on-primary opacity-60"></span>
+<span class="font-spine-meta text-spine-meta">※</span>
+</div>
+</div>
+<!-- Spine 2: 1984 (Charcoal) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3.5 bg-inverse-surface text-surface-bright shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 30px; height: 248px; box-shadow: inset -2px 0 4px rgba(0,0,0,0.4), inset 2px 0 2px rgba(255,255,255,0.12);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-inverse-primary">✕</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-spine-title text-spine-title font-medium tracking-widest whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              1984 • Дж. Оруэлл
+            </span>
+</div>
+<div class="flex flex-col items-center gap-1 opacity-80">
+<span class="font-spine-meta text-spine-meta text-secondary-fixed">MCML</span>
+</div>
+</div>
+<!-- Spine 3: Мастер и Маргарита (Warm Cream) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-surface-container-lowest text-on-surface shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 44px; height: 272px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.08), inset 2px 0 2px rgba(255,255,255,0.8);">
+<div class="flex flex-col items-center gap-1">
+<span class="font-spine-meta text-spine-meta text-primary font-bold">М. Булгаков</span>
+<span class="w-4 h-[1px] bg-outline-variant"></span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-headline-sm text-headline-sm font-medium tracking-normal text-on-surface whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Мастер и Маргарита
+            </span>
+</div>
+<div class="flex flex-col items-center gap-1 text-tertiary">
+<span class="font-spine-meta text-spine-meta">◇</span>
+<span class="font-spine-meta text-spine-meta">MCMXL</span>
+</div>
+</div>
+<!-- Spine 4: Война и мир (Deep Spruce) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-4 bg-secondary text-surface-container-lowest shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 46px; height: 278px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.3), inset 2px 0 2px rgba(255,255,255,0.15);">
+<div class="flex flex-col items-center gap-0.5">
+<span class="font-spine-meta text-spine-meta tracking-widest uppercase opacity-80">Л.Н.Т.</span>
+<span class="text-[9px] opacity-70">✦</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-headline-sm text-headline-sm font-semibold tracking-wider whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Война и мир
+            </span>
+</div>
+<div class="flex flex-col items-center gap-1 opacity-80">
+<span class="font-spine-meta text-spine-meta font-bold">ТОМ I–IV</span>
+<span class="font-spine-meta text-spine-meta text-[8px]">●</span>
+</div>
+</div>
+<!-- Spine 5: Чехов (Parchment Buff) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-surface-container text-on-surface shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 28px; height: 242px; box-shadow: inset -2px 0 2px rgba(0,0,0,0.1), inset 1px 0 2px rgba(255,255,255,0.7);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-tertiary">А.П.Ч.</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-1">
+<span class="font-spine-title text-spine-title font-medium whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Чехов • Повести
+            </span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-primary">※</span>
+</div>
+</div>
+<!-- Spine 6: Пушкин (Deep Terracotta Rubbed) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-primary text-on-primary shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 32px; height: 254px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.3), inset 2px 0 2px rgba(255,255,255,0.2);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta opacity-75">○</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-spine-title text-spine-title font-medium tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              А. С. Пушкин • Стихи
+            </span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta opacity-90">IV</span>
+</div>
+</div>
+<!-- Spine 7: Брэдбери (Linen Cloth Light) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-surface-container-high text-on-surface shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 34px; height: 250px; box-shadow: inset -2px 0 2px rgba(0,0,0,0.1), inset 1px 0 2px rgba(255,255,255,0.8);">
+<div class="flex flex-col items-center gap-0.5">
+<span class="font-spine-meta text-spine-meta text-primary">451°</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-spine-title text-spine-title font-medium whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Р. Брэдбери • Хроники
+            </span>
+</div>
+<div class="flex flex-col items-center text-tertiary">
+<span class="font-spine-meta text-spine-meta font-bold">✦</span>
+</div>
+</div>
+<!-- Spine 8: Кафка (Carbon Black) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-inverse-surface text-surface-container-lowest shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 26px; height: 245px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.5), inset 1px 0 2px rgba(255,255,255,0.15);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-secondary-fixed">§</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-1">
+<span class="font-spine-title text-spine-title font-normal tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Кафка • Процесс
+            </span>
+</div>
+<div class="flex flex-col items-center text-outline-variant">
+<span class="font-spine-meta text-spine-meta">•</span>
+</div>
+</div>
+<!-- Spine 9: Идиот (Spruce Linen) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3.5 bg-secondary text-on-secondary shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 42px; height: 268px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.25), inset 2px 0 2px rgba(255,255,255,0.2);">
+<div class="flex flex-col items-center gap-1">
+<span class="font-spine-meta text-spine-meta opacity-75">Ф.М.Д.</span>
+<span class="w-3 h-[1px] bg-secondary-fixed opacity-40"></span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-headline-sm text-headline-sm font-medium tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Идиот • Достоевский
+            </span>
+</div>
+<div class="flex flex-col items-center opacity-85">
+<span class="font-spine-meta text-spine-meta">✦</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Realistic Physical Shelf Base Plank 1 -->
+<div class="w-full px-space-xs">
+<div class="h-3 w-full bg-surface-container-high rounded-t-sm shadow-[0_4px_8px_rgba(0,0,0,0.06)] flex flex-col justify-between">
+<div class="h-[1.5px] w-full bg-surface-dim"></div>
+<div class="h-[1px] w-full bg-surface-container-highest"></div>
+</div>
+<div class="h-1.5 w-full bg-surface-dim opacity-70"></div>
+</div>
+</section>
+<!-- Bookshelf Tier 2 -->
+<section class="w-full flex flex-col pt-space-xs pb-space-lg select-none">
+<div class="px-margin flex items-center justify-between mb-2">
+<div class="flex items-center gap-1 text-tertiary">
+<span class="font-label-sm text-label-sm uppercase tracking-wider">Ярус B • Современники и Фантастика</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary">VIII томов</span>
+</div>
+<!-- Shelf Spines Track: Tier 2 -->
+<div class="w-full overflow-x-auto no-scrollbar px-margin pt-2 flex items-end">
+<div class="flex items-end flex-nowrap" id="shelf-tier-2">
+<!-- Spine 1: Сапковский (Dark Umber) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-inverse-surface text-surface-bright shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 40px; height: 262px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.35), inset 2px 0 2px rgba(255,255,255,0.12);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-primary-fixed-dim">✦ ✦</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-spine-title text-spine-title font-medium tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              А. Сапковский • Ведьмак
+            </span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<span class="font-spine-meta text-spine-meta text-outline-variant">VIII</span>
+<span class="text-[9px] text-surface-tint">※</span>
+</div>
+</div>
+<!-- Spine 2: Кинг (Muted Terracotta) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-primary-container text-on-primary shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 36px; height: 256px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.25), inset 2px 0 2px rgba(255,255,255,0.2);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta tracking-widest opacity-80">S.K.</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-headline-sm text-headline-sm font-semibold tracking-wider whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Стивен Кинг • Сияние
+            </span>
+</div>
+<div class="flex flex-col items-center opacity-85">
+<span class="font-spine-meta text-spine-meta">◇</span>
+</div>
+</div>
+<!-- Spine 3: Гарри Поттер (Off-white Cloth) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3.5 bg-surface-container-lowest text-on-surface shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 44px; height: 275px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.08), inset 2px 0 2px rgba(255,255,255,0.85);">
+<div class="flex flex-col items-center gap-1">
+<span class="font-spine-meta text-spine-meta text-primary font-semibold">Дж.К.Р.</span>
+<span class="w-3.5 h-[1px] bg-outline-variant"></span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-headline-sm text-headline-sm font-medium whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Гарри Поттер
+            </span>
+</div>
+<div class="flex flex-col items-center gap-0.5 text-tertiary">
+<span class="font-spine-meta text-spine-meta font-bold">VII</span>
+<span class="font-spine-meta text-spine-meta text-primary">⚡</span>
+</div>
+</div>
+<!-- Spine 4: Толстой (Warm Parchment) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-surface-container text-on-surface shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 32px; height: 246px; box-shadow: inset -2px 0 2px rgba(0,0,0,0.1), inset 1px 0 2px rgba(255,255,255,0.7);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-tertiary">Л.Н.</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-1">
+<span class="font-spine-title text-spine-title font-medium whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Анна Каренина
+            </span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-primary font-bold">II</span>
+</div>
+</div>
+<!-- Spine 5: Азимов (Deep Forest Spruce) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-secondary text-surface-container-lowest shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 34px; height: 252px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.3), inset 2px 0 2px rgba(255,255,255,0.18);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta opacity-80">★</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-spine-title text-spine-title font-medium tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Айзек Азимов • Основание
+            </span>
+</div>
+<div class="flex flex-col items-center opacity-85">
+<span class="font-spine-meta text-spine-meta">III</span>
+</div>
+</div>
+<!-- Spine 6: Лем (Sand Linen) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-surface-container-high text-on-surface shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 28px; height: 242px; box-shadow: inset -2px 0 2px rgba(0,0,0,0.1), inset 1px 0 2px rgba(255,255,255,0.8);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-tertiary">СТ. Л.</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-1">
+<span class="font-spine-title text-spine-title font-medium whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Солярис
+            </span>
+</div>
+<div class="flex flex-col items-center text-primary">
+<span class="font-spine-meta text-spine-meta">○</span>
+</div>
+</div>
+<!-- Spine 7: Пелевин (Charcoal Buckram) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3 bg-inverse-surface text-surface-bright shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 32px; height: 248px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.4), inset 1px 0 2px rgba(255,255,255,0.15);">
+<div class="flex flex-col items-center">
+<span class="font-spine-meta text-spine-meta text-secondary-fixed">VI</span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-spine-title text-spine-title font-medium whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              В. Пелевин • Чапаев и Пустота
+            </span>
+</div>
+<div class="flex flex-col items-center text-outline-variant">
+<span class="font-spine-meta text-spine-meta">✦</span>
+</div>
+</div>
+<!-- Spine 8: Сто лет одиночества (Rich Terracotta) -->
+<div class="book-spine relative cursor-pointer flex-shrink-0 flex flex-col justify-between items-center py-3.5 bg-primary text-on-primary shadow-sm hover:-translate-y-2 transition-transform duration-200" style="width: 42px; height: 265px; box-shadow: inset -2px 0 3px rgba(0,0,0,0.3), inset 2px 0 2px rgba(255,255,255,0.25);">
+<div class="flex flex-col items-center gap-1">
+<span class="font-spine-meta text-spine-meta opacity-80">Г.Г.М.</span>
+<span class="w-3.5 h-[1px] bg-primary-fixed opacity-50"></span>
+</div>
+<div class="flex-1 flex items-center justify-center my-2">
+<span class="font-headline-sm text-headline-sm font-semibold tracking-wide whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+              Сто лет одиночества
+            </span>
+</div>
+<div class="flex flex-col items-center opacity-85">
+<span class="font-spine-meta text-spine-meta">※</span>
+<span class="font-spine-meta text-spine-meta">1967</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Realistic Physical Shelf Base Plank 2 -->
+<div class="w-full px-space-xs">
+<div class="h-3 w-full bg-surface-container-high rounded-t-sm shadow-[0_4px_8px_rgba(0,0,0,0.06)] flex flex-col justify-between">
+<div class="h-[1.5px] w-full bg-surface-dim"></div>
+<div class="h-[1px] w-full bg-surface-container-highest"></div>
+</div>
+<div class="h-1.5 w-full bg-surface-dim opacity-70"></div>
+</div>
+</section>
+<!-- Interactive Archival Book Detail Card (Drawer preview upon selection) -->
+<section class="mx-margin mb-space-lg p-space-md bg-surface-container-lowest rounded-xl shadow-sm flex flex-col gap-space-sm transition-all duration-300" id="book-preview-panel">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex gap-space-md items-center">
+<!-- Tactile Spine Micro Indicator -->
+<div class="w-7 h-20 bg-primary-container text-on-primary rounded-sm flex flex-col items-center justify-between py-1 shadow-sm flex-shrink-0" style="box-shadow: inset -1px 0 2px rgba(0,0,0,0.2);">
+<span class="text-[8px] opacity-70">✦</span>
+<span class="font-spine-meta text-[8px] tracking-widest whitespace-nowrap" style="writing-mode: vertical-rl; transform: rotate(180deg);">Ф. ГЕРБЕРТ</span>
+<span class="text-[8px] opacity-70">※</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5 mb-0.5">
+<span class="font-label-sm text-label-sm text-primary font-semibold">В процессе чтения</span>
+<span class="text-tertiary">•</span>
+<span class="font-label-sm text-label-sm text-tertiary">Стр. 384 из 704</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Дюна</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Фрэнк Герберт • Серия «Хроники Дюны»</p>
+</div>
+</div>
+<!-- Quick Bookmark action -->
+<button class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[19px]">bookmark_add</span>
+</button>
+</div>
+<!-- Reading Progress Bar -->
+<div class="flex flex-col gap-1 pt-1">
+<div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 54%;"></div>
+</div>
+<div class="flex justify-between items-center text-tertiary font-label-sm text-label-sm">
+<span>Прогресс: 54%</span>
+<span>Осталось ~ 4 ч 15 мин</span>
+</div>
+</div>
+<!-- Editorial Actions -->
+<div class="flex items-center gap-space-sm pt-space-xs">
+<button class="flex-1 h-10 bg-inverse-surface text-surface-bright font-label-md text-label-md rounded flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.99] transition-transform">
+<span class="material-symbols-outlined text-[18px]">auto_stories</span>
+<span>Продолжить чтение</span>
+</button>
+<button class="h-10 px-space-md bg-surface-container text-on-surface font-label-md text-label-md rounded flex items-center justify-center gap-1 hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+<span>Заметки (12)</span>
+</button>
+</div>
+</section>
+<!-- Script for Spine Selection & Filter Micro-interactions -->
+<script>
+    (function() {
+      const spines = document.querySelectorAll('.book-spine');
+      const previewTitle = document.querySelector('#book-preview-panel h2');
+      const previewSubtitle = document.querySelector('#book-preview-panel p');
+      const previewSpine = document.querySelector('#book-preview-panel div[class*="w-7 h-20"]');
+      const filterTabs = document.querySelectorAll('.filter-tab');
+
+      // Book metadata catalogue for spine clicks
+      const spineCatalog = {
+        'Дюна': { author: 'Фрэнк Герберт', colorClass: 'bg-primary-container text-on-primary', progress: '54%', pages: 'Стр. 384 из 704' },
+        '1984': { author: 'Джордж Оруэлл', colorClass: 'bg-inverse-surface text-surface-bright', progress: '100%', pages: 'Прочитано • 320 стр.' },
+        'Мастер и Маргарита': { author: 'Михаил Булгаков', colorClass: 'bg-surface-container-lowest text-on-surface', progress: '88%', pages: 'Стр. 440 из 500' },
+        'Война и мир': { author: 'Лев Толстой', colorClass: 'bg-secondary text-surface-container-lowest', progress: '22%', pages: 'Стр. 312 из 1400' },
+        'Чехов': { author: 'Антон Чехов', colorClass: 'bg-surface-container text-on-surface', progress: '100%', pages: 'Прочитано • 410 стр.' },
+        'Пушкин': { author: 'Александр Пушкин', colorClass: 'bg-primary text-on-primary', progress: '65%', pages: 'Стр. 210 из 320' },
+        'Брэдбери': { author: 'Рэй Брэдбери', colorClass: 'bg-surface-container-high text-on-surface', progress: '40%', pages: 'Стр. 102 из 256' },
+        'Кафка': { author: 'Франц Кафка', colorClass: 'bg-inverse-surface text-surface-container-lowest', progress: '10%', pages: 'Стр. 28 из 280' },
+        'Идиот': { author: 'Федор Достоевский', colorClass: 'bg-secondary text-on-secondary', progress: '91%', pages: 'Стр. 590 из 648' },
+        'Сапковский': { author: 'Анджей Сапковский', colorClass: 'bg-inverse-surface text-surface-bright', progress: '75%', pages: 'Стр. 340 из 450' },
+        'Кинг': { author: 'Стивен Кинг', colorClass: 'bg-primary-container text-on-primary', progress: '15%', pages: 'Стр. 75 из 510' },
+        'Гарри Поттер': { author: 'Дж. К. Роулинг', colorClass: 'bg-surface-container-lowest text-on-surface', progress: '100%', pages: 'Прочитано • 638 стр.' },
+        'Толстой': { author: 'Лев Толстой', colorClass: 'bg-surface-container text-on-surface', progress: '30%', pages: 'Стр. 260 из 860' },
+        'Азимов': { author: 'Айзек Азимов', colorClass: 'bg-secondary text-surface-container-lowest', progress: '82%', pages: 'Стр. 240 из 292' },
+        'Лем': { author: 'Станислав Лем', colorClass: 'bg-surface-container-high text-on-surface', progress: '100%', pages: 'Прочитано • 288 стр.' },
+        'Пелевин': { author: 'Виктор Пелевин', colorClass: 'bg-inverse-surface text-surface-bright', progress: '48%', pages: 'Стр. 180 из 375' },
+        'Сто лет одиночества': { author: 'Габриэль Гарсиа Маркес', colorClass: 'bg-primary text-on-primary', progress: '95%', pages: 'Стр. 456 из 480' }
+      };
+
+      spines.forEach(spine => {
+        spine.addEventListener('click', function() {
+          spines.forEach(s => s.classList.remove('-translate-y-3', 'ring-2', 'ring-primary'));
+          this.classList.add('-translate-y-3');
+
+          const textEl = this.querySelector('span[style*="writing-mode"]');
+          if (!textEl) return;
+          const fullText = textEl.innerText.trim();
+          const matchKey = Object.keys(spineCatalog).find(k => fullText.includes(k));
+
+          if (matchKey && spineCatalog[matchKey]) {
+            const data = spineCatalog[matchKey];
+            previewTitle.innerText = matchKey;
+            previewSubtitle.innerText = `${data.author} • Библиотечный фонд`;
+            const progressFill = document.querySelector('#book-preview-panel .bg-primary.h-full');
+            const progressText = document.querySelector('#book-preview-panel .text-tertiary span');
+            if (progressFill) progressFill.style.width = data.progress;
+            if (progressText) progressText.innerText = `Прогресс: ${data.progress}`;
+          }
+        });
+      });
+
+      // Filter tab switcher
+      filterTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+          filterTabs.forEach(t => {
+            t.classList.remove('text-on-surface');
+            t.classList.add('text-tertiary');
+            const bar = t.querySelector('span.absolute');
+            if (bar) bar.remove();
+          });
+          this.classList.remove('text-tertiary');
+          this.classList.add('text-on-surface');
+          const activeIndicator = document.createElement('span');
+          activeIndicator.className = 'absolute bottom-0 left-0 right-0 h-[2px] bg-primary rounded-full';
+          this.appendChild(activeIndicator);
+        });
+      });
+    })();
+  </script>
+</div></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/85 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,0,0,0.03)]" data-active-classes="text-primary font-medium"><div class="h-16 px-space-xs flex items-center justify-around"><a aria-current="page" class="flex flex-col items-center justify-center min-w-[56px] h-12 transition-colors text-primary font-medium" data-path="library" href="#"><span class="material-symbols-outlined text-[24px]">local_library</span><span class="font-label-sm text-label-sm mt-0.5 tracking-wider">Библиотека</span></a><a class="flex flex-col items-center justify-center min-w-[56px] h-12 text-on-surface-variant transition-colors" data-path="search" href="#"><span class="material-symbols-outlined text-[24px]">search</span><span class="font-label-sm text-label-sm mt-0.5 tracking-wider">Поиск</span></a><a class="flex flex-col items-center justify-center min-w-[56px] h-12 text-on-surface-variant transition-colors" data-path="add-book" href="#"><span class="material-symbols-outlined text-[24px]">add_circle_outline</span><span class="font-label-sm text-label-sm mt-0.5 tracking-wider">Добавить</span></a><a class="flex flex-col items-center justify-center min-w-[56px] h-12 text-on-surface-variant transition-colors" data-path="settings" href="#"><span class="material-symbols-outlined text-[24px]">more_horiz</span><span class="font-label-sm text-label-sm mt-0.5 tracking-wider">Ещё</span></a></div></nav></body></html>

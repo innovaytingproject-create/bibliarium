@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bibliarium</string>
+
+    <string name="library_add_book">Добавить книгу</string>
+    <string name="library_empty_title">Полка пока пуста</string>
+    <string name="library_empty_hint">Добавьте книгу в формате EPUB или FB2 — она останется в памяти телефона.</string>
+    <string name="library_books_count">Книг: %1$d</string>
+    <string name="library_delete">Удалить</string>
+    <string name="library_no_author">Автор не указан</string>
+    <string name="library_importing">Добавляем книгу…</string>
+
+    <string name="import_ok">Добавлено: %1$s</string>
+    <string name="import_error_unknown_format">Непонятный формат файла. Нужен EPUB или FB2.</string>
+    <string name="import_error_unsupported_format">Этот формат появится позже. Пока только EPUB и FB2.</string>
+    <string name="import_error_unreadable">Не удалось прочитать файл.</string>
+    <string name="import_error_parse">Файл повреждён — книгу не удалось разобрать.</string>
+    <string name="import_error_storage">Не хватило места или не удалось сохранить файл.</string>
+</resources>

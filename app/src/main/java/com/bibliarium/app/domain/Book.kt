@@ -1,0 +1,57 @@
+package com.bibliarium.app.domain
+
+/**
+ * Книга в терминах предметной области. UI и остальные слои знают только этот тип —
+ * ни Room-сущности, ни Readium сюда не протекают.
+ */
+data class Book(
+    val id: String,
+    val title: String,
+    val author: String?,
+    val format: BookFormat,
+    val filePath: String,
+    val coverPath: String?,
+    val addedAt: Long,
+    val lastOpenedAt: Long?,
+    /** 0..1 */
+    val progress: Float,
+    /** Позиция чтения в формате Readium (JSON-локатор). */
+    val locator: String?,
+    val status: ReadingStatus,
+    val genre: String?,
+    val shelfId: String?,
+    val isFavorite: Boolean,
+)
+
+enum class ReadingStatus {
+    NOT_STARTED,
+    READING,
+    FINISHED,
+}
+
+/**
+ * PDF и DJVU в первой версии не импортируются, но формат в модели уже есть:
+ * экран чтения будет выбирать движок по нему (раздел 11 ТЗ).
+ */
+enum class BookFormat(val extension: String) {
+    EPUB("epub"),
+    FB2("fb2"),
+    PDF("pdf"),
+    DJVU("djvu"),
+    ;
+
+    /** Поддерживается ли формат импортом и чтением в текущей версии. */
+    val isSupported: Boolean
+        get() = this == EPUB || this == FB2
+
+    companion object {
+        fun fromExtension(extension: String): BookFormat? =
+            when (extension.lowercase()) {
+                "epub" -> EPUB
+                "fb2" -> FB2
+                "pdf" -> PDF
+                "djvu", "djv" -> DJVU
+                else -> null
+            }
+    }
+}

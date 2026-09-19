@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Три корешка — тот же мотив, что и на полке. -->
+    <path
+        android:fillColor="#F2F0EA"
+        android:pathData="M33,32h10a2,2 0 0 1 2,2v40a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-40a2,2 0 0 1 2,-2z" />
+    <path
+        android:fillColor="#B44D38"
+        android:pathData="M49,28h10a2,2 0 0 1 2,2v44a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-44a2,2 0 0 1 2,-2z" />
+    <path
+        android:fillColor="#EAE6DC"
+        android:pathData="M65,36h10a2,2 0 0 1 2,2v36a2,2 0 0 1 -2,2h-10a2,2 0 0 1 -2,-2v-36a2,2 0 0 1 2,-2z" />
+    <!-- Полка -->
+    <path
+        android:fillColor="#8A726D"
+        android:pathData="M28,76h52v4h-52z" />
+</vector>

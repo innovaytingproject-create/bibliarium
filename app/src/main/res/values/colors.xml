@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Только для системного окна до старта Compose. Токены живут в ui/theme/Tokens.kt. -->
+    <color name="window_background">#F2F0EA</color>
+    <color name="ic_launcher_background">#202321</color>
+</resources>

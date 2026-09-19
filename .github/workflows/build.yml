@@ -24,11 +24,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # Стороннее действие для SDK не используем: android-actions/setup-android
+      # тянет давно удалённый пакет tools и падает. На раннере Android SDK уже
+      # стоит, нужна только платформа 37.
       - name: Install Android platform 37
-        run: sdkmanager --install "platforms;android-37"
+        run: |
+          set -eu
+          SDKMANAGER=$(ls "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin/sdkmanager | head -1)
+          echo "sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" --install "platforms;android-37"
 
       # Версию Gradle задаёт только wrapper: gradle/wrapper/gradle-wrapper.properties
       # закоммичен, distributionUrl указывает точную версию, distributionSha256Sum

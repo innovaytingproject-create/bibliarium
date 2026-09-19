@@ -13,13 +13,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      # JDK задан числом намеренно: latest и автоопределение ломают сборку
+      # задним числом. 17 — та версия, на которой собирается сам Readium 3.4.0
+      # с этой же связкой AGP 9.3.1 / Gradle 9.7.0.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -27,15 +30,17 @@ jobs:
       - name: Install Android platform 37
         run: sdkmanager --install "platforms;android-37"
 
-      # Обёртки gradlew в репозитории нет намеренно: проект не собирается локально,
-      # поэтому Gradle нужной версии ставит сам workflow.
+      # Версию Gradle задаёт только wrapper: gradle/wrapper/gradle-wrapper.properties
+      # закоммичен, distributionUrl указывает точную версию, distributionSha256Sum
+      # проверяет дистрибутив. Здесь версия не переопределяется.
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
         with:
-          gradle-version: '9.7.0'
+          # Кеш зависимостей и build cache. В main пишем, в PR только читаем.
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        run: ./gradlew :app:assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

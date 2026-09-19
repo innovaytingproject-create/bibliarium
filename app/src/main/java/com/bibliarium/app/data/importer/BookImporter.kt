@@ -10,9 +10,11 @@ import com.bibliarium.app.domain.BookFormat
 import com.bibliarium.app.domain.ReadingStatus
 import java.io.File
 import java.util.UUID
+import java.util.zip.ZipInputStream
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
 import org.readium.r2.shared.publication.services.cover
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
@@ -37,41 +39,46 @@ class BookImporter(
         val cover: Bitmap?,
     )
 
+    /** Что именно выбрал пользователь: формат книги и лежит ли она в zip. */
+    private data class SourceKind(
+        val format: BookFormat,
+        val zipped: Boolean,
+    )
+
     suspend fun import(uri: Uri): Result<Book> = withContext(Dispatchers.IO) {
         val displayName = resolveDisplayName(uri)
-        val extension = displayName?.substringAfterLast('.', "").orEmpty()
-        val format = BookFormat.fromExtension(extension)
+        val kind = detectKind(displayName)
             ?: return@withContext Result.failure(ImportException(ImportFailure.UNKNOWN_FORMAT))
 
-        if (!format.isSupported) {
+        if (!kind.format.isSupported) {
             return@withContext Result.failure(ImportException(ImportFailure.UNSUPPORTED_FORMAT))
         }
 
         val id = UUID.randomUUID().toString()
-        val target = File(booksDir, "$id.${format.extension}")
+        val target = File(booksDir, "$id.${kind.format.extension}")
 
         try {
-            copyToStorage(uri, target)
+            if (kind.zipped) {
+                extractFb2(uri, target)
+            } else {
+                copyToStorage(uri, target)
+            }
 
-            val metadata = when (format) {
+            val metadata = when (kind.format) {
                 BookFormat.EPUB -> readWithReadium(target)
                     ?: throw ImportException(ImportFailure.PARSE_FAILED)
                 BookFormat.FB2 -> readFb2(target)
                 else -> throw ImportException(ImportFailure.UNSUPPORTED_FORMAT)
             }
 
-            val fallbackTitle = displayName
-                ?.substringBeforeLast('.')
-                ?.takeIf { it.isNotBlank() }
-                ?: target.name
-
             val coverPath = metadata.cover?.let { saveThumbnail(id, it) }
 
             val book = Book(
                 id = id,
-                title = metadata.title?.takeIf { it.isNotBlank() } ?: fallbackTitle,
+                title = metadata.title?.takeIf { it.isNotBlank() }
+                    ?: fallbackTitle(displayName, target),
                 author = metadata.author?.takeIf { it.isNotBlank() },
-                format = format,
+                format = kind.format,
                 filePath = target.absolutePath,
                 coverPath = coverPath,
                 addedAt = System.currentTimeMillis(),
@@ -93,12 +100,53 @@ class BookImporter(
         }
     }
 
+    /**
+     * У русских книг самый частый вид — .fb2.zip, поэтому zip разбирается наравне
+     * с обычным файлом. Голый .zip тоже пробуем: если внутри нет fb2, импорт
+     * откажется с UNKNOWN_FORMAT.
+     */
+    private fun detectKind(displayName: String?): SourceKind? {
+        val name = displayName?.lowercase() ?: return null
+        return when {
+            name.endsWith(".zip") -> SourceKind(BookFormat.FB2, zipped = true)
+            else -> BookFormat.fromExtension(name.substringAfterLast('.', ""))
+                ?.let { SourceKind(it, zipped = false) }
+        }
+    }
+
     private fun copyToStorage(uri: Uri, target: File) {
         val input = context.contentResolver.openInputStream(uri)
             ?: throw ImportException(ImportFailure.UNREADABLE_FILE)
         input.use { source ->
             target.outputStream().use { sink -> source.copyTo(sink) }
         }
+    }
+
+    /**
+     * Распаковка идёт потоком сразу в целевой файл: ни временного файла на диске,
+     * ни книги целиком в памяти. Имена записей читаем как ISO-8859-1 — в русских
+     * архивах они бывают в CP866, а разбор UTF-8 на таких именах падает; суффикс
+     * .fb2 всё равно ASCII, так что проверка не страдает.
+     */
+    private fun extractFb2(uri: Uri, target: File) {
+        val input = context.contentResolver.openInputStream(uri)
+            ?: throw ImportException(ImportFailure.UNREADABLE_FILE)
+
+        input.use { raw ->
+            ZipInputStream(raw.buffered(), Charsets.ISO_8859_1).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory && entry.name.lowercase().endsWith(".fb2")) {
+                        target.outputStream().use { sink -> zip.copyTo(sink) }
+                        return
+                    }
+                    zip.closeEntry()
+                    entry = zip.nextEntry
+                }
+            }
+        }
+
+        throw ImportException(ImportFailure.UNKNOWN_FORMAT)
     }
 
     /** EPUB читает Readium. Своего парсера нет и не будет. */
@@ -153,6 +201,19 @@ class BookImporter(
         val width = (bitmap.width * ratio).roundToInt().coerceAtLeast(1)
         val height = (bitmap.height * ratio).roundToInt().coerceAtLeast(1)
         return Bitmap.createScaledBitmap(bitmap, width, height, true)
+    }
+
+    /** "Толстой. Война и мир.fb2.zip" -> "Толстой. Война и мир". */
+    private fun fallbackTitle(displayName: String?, target: File): String {
+        var name = displayName ?: return target.name
+        if (name.lowercase().endsWith(".zip")) {
+            name = name.dropLast(".zip".length)
+        }
+        val dot = name.lastIndexOf('.')
+        if (dot > 0) {
+            name = name.substring(0, dot)
+        }
+        return name.ifBlank { target.name }
     }
 
     private fun resolveDisplayName(uri: Uri): String? {

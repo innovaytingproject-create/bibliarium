@@ -1,17 +1,17 @@
 package com.bibliarium.app.ui.scan
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.bibliarium.app.AppContainer
+import com.bibliarium.app.data.access.FileAccessProvider
 import com.bibliarium.app.data.importer.BatchImporter
 import com.bibliarium.app.data.importer.BatchProgress
-import com.bibliarium.app.data.scan.DeviceScanner
-import com.bibliarium.app.data.scan.ScanUpdate
-import com.bibliarium.app.data.settings.AppSettings
+import com.bibliarium.app.data.scan.BookScanner
+import com.bibliarium.app.data.scan.ScanPhase
+import com.bibliarium.app.data.scan.ScanProgress
 import com.bibliarium.app.data.store.BookStore
 import com.bibliarium.app.domain.FoundBook
 import com.bibliarium.app.domain.FoundBookState
@@ -24,8 +24,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class ScanStage {
-    /** Корневая папка ещё не выбрана — спрашиваем один раз. */
-    NEED_ROOT,
+    /** Ни папок не выбрано, ни полного доступа — искать негде. */
+    NO_ACCESS,
     READY,
     SCANNING,
     RESULTS,
@@ -33,14 +33,14 @@ enum class ScanStage {
 }
 
 data class ScanUiState(
-    val stage: ScanStage = ScanStage.NEED_ROOT,
-    val rootUri: String? = null,
-    val progress: ScanUpdate.Progress? = null,
+    val stage: ScanStage = ScanStage.NO_ACCESS,
+    val progress: ScanProgress? = null,
     val books: List<FoundBook> = emptyList(),
     val selected: Set<String> = emptySet(),
     /** По умолчанию скрываем уже добавленное: повторный поиск показывает только новое. */
     val onlyNew: Boolean = true,
     val batch: BatchProgress? = null,
+    val fullAccess: Boolean = false,
 ) {
     val visibleBooks: List<FoundBook>
         get() = if (onlyNew) books.filter { it.state != FoundBookState.ALREADY_ADDED } else books
@@ -54,9 +54,9 @@ data class ScanUiState(
 }
 
 class ScanViewModel(
-    private val scanner: DeviceScanner,
+    private val accessProvider: FileAccessProvider,
+    private val scanner: BookScanner,
     private val bookStore: BookStore,
-    private val settings: AppSettings,
     private val batchImporter: BatchImporter,
 ) : ViewModel() {
 
@@ -67,29 +67,34 @@ class ScanViewModel(
     private var batchJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            val root = settings.currentScanRootUri()
-            _state.update {
-                it.copy(
-                    rootUri = root,
-                    stage = if (root == null) ScanStage.NEED_ROOT else ScanStage.READY,
-                )
-            }
-            if (root != null) startScan()
-        }
+        refreshAccess(autoStart = true)
     }
 
-    /** Разрешение на дерево уже взято экраном; сюда приходит готовый URI. */
-    fun onRootChosen(uri: String) {
+    /**
+     * Проверяем доступ при каждом заходе на экран: пользователь мог выдать или
+     * отозвать полный доступ в системных настройках, пока нас не было видно.
+     */
+    fun refreshAccess(autoStart: Boolean = false) {
         viewModelScope.launch {
-            settings.setScanRootUri(uri)
-            _state.update { it.copy(rootUri = uri, stage = ScanStage.READY) }
-            startScan()
+            val access = accessProvider.current()
+            val available = access.isAvailable()
+            _state.update {
+                it.copy(
+                    fullAccess = accessProvider.allFilesGranted(),
+                    stage = when {
+                        !available -> ScanStage.NO_ACCESS
+                        it.stage == ScanStage.NO_ACCESS -> ScanStage.READY
+                        else -> it.stage
+                    },
+                )
+            }
+            if (available && autoStart && _state.value.books.isEmpty()) {
+                startScan()
+            }
         }
     }
 
     fun startScan() {
-        val root = _state.value.rootUri ?: return
         scanJob?.cancel()
         scanJob = viewModelScope.launch {
             _state.update {
@@ -97,41 +102,69 @@ class ScanViewModel(
                     stage = ScanStage.SCANNING,
                     books = emptyList(),
                     selected = emptySet(),
-                    progress = null,
+                    progress = ScanProgress(ScanPhase.WALKING),
                     batch = null,
                 )
             }
 
-            val known = runCatching { bookStore.fingerprints() }.getOrDefault(emptyMap())
-
             try {
-                scanner.scan(Uri.parse(root), known).collect { update ->
-                    when (update) {
-                        is ScanUpdate.Progress ->
-                            _state.update { it.copy(progress = update) }
+                val access = accessProvider.current()
+                if (!access.isAvailable()) {
+                    _state.update { it.copy(stage = ScanStage.NO_ACCESS, progress = null) }
+                    return@launch
+                }
 
-                        is ScanUpdate.Found ->
-                            _state.update { it.copy(books = update.books) }
-
-                        is ScanUpdate.Title ->
-                            _state.update { current ->
-                                current.copy(
-                                    books = current.books.map { book ->
-                                        if (book.uri == update.uri) {
-                                            book.copy(title = update.title)
-                                        } else {
-                                            book
-                                        }
-                                    },
-                                )
-                            }
-
-                        ScanUpdate.Finished ->
-                            _state.update {
-                                it.copy(stage = ScanStage.RESULTS, progress = null)
-                            }
+                val raw = access.findBooks { scanned, found ->
+                    _state.update {
+                        it.copy(
+                            progress = ScanProgress(
+                                phase = ScanPhase.WALKING,
+                                scanned = scanned,
+                                found = found,
+                            ),
+                        )
                     }
                 }
+
+                val known = runCatching { bookStore.fingerprints() }.getOrDefault(emptyMap())
+                val checked = scanner.markAlreadyAdded(raw, known) { processed, total ->
+                    _state.update {
+                        it.copy(
+                            progress = ScanProgress(
+                                phase = ScanPhase.MATCHING,
+                                processed = processed,
+                                total = total,
+                            ),
+                        )
+                    }
+                }
+
+                _state.update { it.copy(books = checked, stage = ScanStage.RESULTS) }
+
+                scanner.readTitles(checked).collect { update ->
+                    _state.update { current ->
+                        current.copy(
+                            progress = ScanProgress(
+                                phase = ScanPhase.READING_TITLES,
+                                processed = update.processed,
+                                total = update.total,
+                            ),
+                            books = if (update.title == null) {
+                                current.books
+                            } else {
+                                current.books.map { book ->
+                                    if (book.uri == update.uri) {
+                                        book.copy(title = update.title)
+                                    } else {
+                                        book
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+
+                _state.update { it.copy(progress = null) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -171,7 +204,12 @@ class ScanViewModel(
             if (current.allSelected) {
                 current.copy(selected = emptySet())
             } else {
-                current.copy(selected = current.visibleBooks.filter { it.selectable }.map { it.uri }.toSet())
+                current.copy(
+                    selected = current.visibleBooks
+                        .filter { it.selectable }
+                        .map { it.uri }
+                        .toSet(),
+                )
             }
         }
     }
@@ -203,7 +241,7 @@ class ScanViewModel(
         }
     }
 
-    /** После показа итога возвращаемся к списку, убрав добавленное. */
+    /** После показа итога возвращаемся к списку, пометив добавленное. */
     fun acknowledgeImport() {
         batchJob?.cancel()
         batchJob = null
@@ -235,9 +273,9 @@ class ScanViewModel(
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ScanViewModel(
-                    scanner = container.deviceScanner,
+                    accessProvider = container.fileAccessProvider,
+                    scanner = container.bookScanner,
                     bookStore = container.bookStore,
-                    settings = container.settings,
                     batchImporter = container.batchImporter,
                 )
             }

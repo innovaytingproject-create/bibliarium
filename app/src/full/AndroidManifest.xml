@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Единственное отличие варианта full от play.
+        Google Play ограничивает это разрешение: его дают файловым менеджерам,
+        антивирусам и бэкап-приложениям, читалку с ним заворачивают. Поэтому
+        оно объявлено здесь, а не в основном манифесте: сборка play собирается
+        без него и без единой правки в коде.
+    -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+</manifest>

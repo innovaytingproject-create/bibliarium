@@ -1,5 +1,6 @@
 package com.bibliarium.app.data.importer
 
+import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -240,6 +241,15 @@ class BookImporter(
     }
 
     fun queryDocument(uri: Uri): DocumentInfo {
+        // При полном доступе книги приходят как file:// — у них нет провайдера,
+        // который ответил бы на query, зато имя и размер берутся напрямую.
+        if (uri.scheme == ContentResolver.SCHEME_FILE) {
+            val file = uri.path?.let(::File)
+            if (file != null) {
+                return DocumentInfo(file.name, file.length())
+            }
+        }
+
         context.contentResolver
             .query(
                 uri,

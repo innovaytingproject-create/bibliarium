@@ -6,7 +6,8 @@ import com.bibliarium.app.data.db.BibliariumDatabase
 import com.bibliarium.app.data.db.ImportQueueDao
 import com.bibliarium.app.data.importer.BatchImporter
 import com.bibliarium.app.data.importer.BookImporter
-import com.bibliarium.app.data.scan.DeviceScanner
+import com.bibliarium.app.data.access.FileAccessProvider
+import com.bibliarium.app.data.scan.BookScanner
 import com.bibliarium.app.data.scan.ScanMetadataReader
 import com.bibliarium.app.data.settings.AppSettings
 import com.bibliarium.app.data.store.BookStore
@@ -77,8 +78,12 @@ class AppContainer(context: Context) {
         ScanMetadataReader(appContext, assetRetriever, publicationOpener)
     }
 
-    val deviceScanner: DeviceScanner by lazy {
-        DeviceScanner(appContext, bookImporter, scanMetadataReader)
+    val bookScanner: BookScanner by lazy {
+        BookScanner(bookImporter, scanMetadataReader)
+    }
+
+    val fileAccessProvider: FileAccessProvider by lazy {
+        FileAccessProvider(appContext, settings)
     }
 
     val batchImporter: BatchImporter by lazy { BatchImporter(appContext, importQueueDao) }

@@ -32,6 +32,7 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 fun AddBookScreen(
     onScan: () -> Unit,
     onFilePicked: (Uri) -> Unit,
+    onOpenSettings: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -73,6 +74,12 @@ fun AddBookScreen(
                 title = stringResource(R.string.add_manual),
                 hint = stringResource(R.string.add_manual_hint),
                 onClick = { picker.launch(arrayOf("*/*")) },
+            )
+
+            ChoiceCard(
+                title = stringResource(R.string.add_settings),
+                hint = stringResource(R.string.add_settings_hint),
+                onClick = onOpenSettings,
             )
 
             TextButton(onClick = onBack) {

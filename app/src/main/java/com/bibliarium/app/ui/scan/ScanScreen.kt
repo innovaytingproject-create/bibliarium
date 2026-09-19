@@ -1,9 +1,5 @@
 package com.bibliarium.app.ui.scan
 
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,22 +23,25 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bibliarium.app.R
 import com.bibliarium.app.data.importer.BatchProgress
 import com.bibliarium.app.data.importer.ImportFailure
 import com.bibliarium.app.data.scan.ScanPhase
-import com.bibliarium.app.data.scan.ScanUpdate
+import com.bibliarium.app.data.scan.ScanProgress
 import com.bibliarium.app.domain.FoundBook
 import com.bibliarium.app.domain.FoundBookState
 import com.bibliarium.app.ui.theme.BibliariumTheme
@@ -51,28 +50,23 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 fun ScanScreen(
     viewModel: ScanViewModel,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
-    val context = LocalContext.current
 
-    val treePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree(),
-    ) { uri: Uri? ->
-        if (uri != null) {
-            // Без persistable-разрешения доступ пропадёт после перезапуска,
-            // и фоновый импорт уже не сможет прочитать файлы.
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-            viewModel.onRootChosen(uri.toString())
+    // Пользователь мог выдать полный доступ или добавить папку и вернуться —
+    // перечитываем доступ каждый раз, когда экран снова виден.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshAccess()
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -109,11 +103,12 @@ fun ScanScreen(
             HorizontalDivider(thickness = 1.dp, color = colors.line)
 
             when (state.stage) {
-                ScanStage.NEED_ROOT -> ChooseRoot(onChoose = { treePicker.launch(null) })
+                ScanStage.NO_ACCESS -> NoAccess(onOpenSettings = onOpenSettings)
 
                 ScanStage.READY -> Ready(
+                    fullAccess = state.fullAccess,
                     onStart = viewModel::startScan,
-                    onChangeFolder = { treePicker.launch(null) },
+                    onOpenSettings = onOpenSettings,
                 )
 
                 ScanStage.SCANNING -> Scanning(
@@ -128,7 +123,7 @@ fun ScanScreen(
                     onOnlyNewChange = viewModel::setOnlyNew,
                     onImport = viewModel::importSelected,
                     onRepeat = viewModel::startScan,
-                    onChangeFolder = { treePicker.launch(null) },
+                    onOpenSettings = onOpenSettings,
                 )
 
                 ScanStage.IMPORTING -> Importing(
@@ -141,7 +136,7 @@ fun ScanScreen(
 }
 
 @Composable
-private fun ChooseRoot(onChoose: () -> Unit) {
+private fun NoAccess(onOpenSettings: () -> Unit) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
@@ -151,21 +146,28 @@ private fun ChooseRoot(onChoose: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
         Text(
-            text = stringResource(R.string.scan_need_root_title),
+            text = stringResource(R.string.scan_no_access_title),
             style = type.headlineMd,
             color = colors.text,
         )
         Text(
-            text = stringResource(R.string.scan_need_root_hint),
+            text = stringResource(R.string.scan_no_access_hint),
             style = type.bodyMd,
             color = colors.textSecondary,
         )
-        PrimaryButton(text = stringResource(R.string.scan_choose_folder), onClick = onChoose)
+        PrimaryButton(
+            text = stringResource(R.string.scan_open_settings),
+            onClick = onOpenSettings,
+        )
     }
 }
 
 @Composable
-private fun Ready(onStart: () -> Unit, onChangeFolder: () -> Unit) {
+private fun Ready(
+    fullAccess: Boolean,
+    onStart: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
@@ -174,10 +176,19 @@ private fun Ready(onStart: () -> Unit, onChangeFolder: () -> Unit) {
         modifier = Modifier.padding(top = spacing.xl),
         verticalArrangement = Arrangement.spacedBy(spacing.md),
     ) {
+        Text(
+            text = if (fullAccess) {
+                stringResource(R.string.scan_source_full)
+            } else {
+                stringResource(R.string.scan_source_folders)
+            },
+            style = type.bodySm,
+            color = colors.textSecondary,
+        )
         PrimaryButton(text = stringResource(R.string.scan_start), onClick = onStart)
-        TextButton(onClick = onChangeFolder) {
+        TextButton(onClick = onOpenSettings) {
             Text(
-                text = stringResource(R.string.scan_change_folder),
+                text = stringResource(R.string.scan_open_settings),
                 style = type.labelLg,
                 color = colors.textSecondary,
             )
@@ -186,7 +197,7 @@ private fun Ready(onStart: () -> Unit, onChangeFolder: () -> Unit) {
 }
 
 @Composable
-private fun Scanning(progress: ScanUpdate.Progress?, onCancel: () -> Unit) {
+private fun Scanning(progress: ScanProgress?, onCancel: () -> Unit) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
@@ -204,21 +215,7 @@ private fun Scanning(progress: ScanUpdate.Progress?, onCancel: () -> Unit) {
                 strokeWidth = 2.dp,
                 color = colors.accent,
             )
-            Text(
-                text = progressText(progress),
-                style = type.bodyMd,
-                color = colors.text,
-            )
-        }
-
-        progress?.currentFolder?.let { folder ->
-            Text(
-                text = folder,
-                style = type.bodySm,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(text = progressText(progress), style = type.bodyMd, color = colors.text)
         }
 
         TextButton(onClick = onCancel) {
@@ -232,20 +229,15 @@ private fun Scanning(progress: ScanUpdate.Progress?, onCancel: () -> Unit) {
 }
 
 @Composable
-private fun progressText(progress: ScanUpdate.Progress?): String {
+private fun progressText(progress: ScanProgress?): String {
     if (progress == null) {
         return stringResource(R.string.scan_progress_walking, 0, 0)
     }
     return when (progress.phase) {
         ScanPhase.WALKING -> stringResource(
             R.string.scan_progress_walking,
-            progress.foldersScanned,
-            progress.booksFound,
-        )
-        ScanPhase.INSPECTING_ARCHIVES -> stringResource(
-            R.string.scan_progress_archives,
-            progress.processed,
-            progress.total,
+            progress.scanned,
+            progress.found,
         )
         ScanPhase.MATCHING -> stringResource(
             R.string.scan_progress_matching,
@@ -268,7 +260,7 @@ private fun Results(
     onOnlyNewChange: (Boolean) -> Unit,
     onImport: () -> Unit,
     onRepeat: () -> Unit,
-    onChangeFolder: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
@@ -279,7 +271,7 @@ private fun Results(
             title = stringResource(R.string.scan_nothing_title),
             hint = stringResource(R.string.scan_nothing_hint),
             onRepeat = onRepeat,
-            onChangeFolder = onChangeFolder,
+            onOpenSettings = onOpenSettings,
         )
         return
     }
@@ -289,7 +281,7 @@ private fun Results(
             title = stringResource(R.string.scan_all_added_title),
             hint = stringResource(R.string.scan_all_added_hint),
             onRepeat = onRepeat,
-            onChangeFolder = onChangeFolder,
+            onOpenSettings = onOpenSettings,
             onShowAll = { onOnlyNewChange(false) },
         )
         return
@@ -340,10 +332,7 @@ private fun Results(
                 )
                 if (state.onlyNew && state.alreadyAddedCount > 0) {
                     Text(
-                        text = stringResource(
-                            R.string.scan_hidden_added,
-                            state.alreadyAddedCount,
-                        ),
+                        text = stringResource(R.string.scan_hidden_added, state.alreadyAddedCount),
                         style = type.labelSm,
                         color = colors.textSecondary,
                     )
@@ -397,7 +386,7 @@ private fun EmptyResult(
     title: String,
     hint: String,
     onRepeat: () -> Unit,
-    onChangeFolder: () -> Unit,
+    onOpenSettings: () -> Unit,
     onShowAll: (() -> Unit)? = null,
 ) {
     val colors = BibliariumTheme.colors
@@ -427,9 +416,9 @@ private fun EmptyResult(
                 color = colors.accent,
             )
         }
-        TextButton(onClick = onChangeFolder) {
+        TextButton(onClick = onOpenSettings) {
             Text(
-                text = stringResource(R.string.scan_change_folder),
+                text = stringResource(R.string.scan_open_settings),
                 style = type.labelLg,
                 color = colors.textSecondary,
             )
@@ -477,6 +466,7 @@ private fun FoundBookRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+
             val stateLabel = when (book.state) {
                 FoundBookState.ALREADY_ADDED -> stringResource(R.string.scan_already_added)
                 FoundBookState.NOT_SUPPORTED_YET -> stringResource(R.string.scan_not_supported_yet)
@@ -559,7 +549,10 @@ private fun Importing(batch: BatchProgress?, onDone: () -> Unit) {
 
             if (showProblems) {
                 LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
-                    items(batch.failures.size, key = { index -> batch.failures[index].uri }) { index ->
+                    items(
+                        batch.failures.size,
+                        key = { index -> batch.failures[index].uri },
+                    ) { index ->
                         val failure = batch.failures[index]
                         Column(modifier = Modifier.padding(vertical = spacing.xs)) {
                             Text(

@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibliarium.app.AppContainer
 import com.bibliarium.app.appContainer
@@ -18,6 +19,8 @@ import com.bibliarium.app.ui.library.LibraryScreen
 import com.bibliarium.app.ui.library.LibraryViewModel
 import com.bibliarium.app.ui.scan.ScanScreen
 import com.bibliarium.app.ui.scan.ScanViewModel
+import com.bibliarium.app.ui.settings.SettingsScreen
+import com.bibliarium.app.ui.settings.SettingsViewModel
 import com.bibliarium.app.ui.theme.BibliariumTheme
 import com.bibliarium.app.ui.theme.ThemeVariant
 
@@ -29,6 +32,7 @@ private enum class Screen {
     LIBRARY,
     ADD_BOOK,
     SCAN,
+    SETTINGS,
 }
 
 class MainActivity : ComponentActivity() {
@@ -57,7 +61,10 @@ private fun BibliariumApp(container: AppContainer) {
     )
 
     BackHandler(enabled = screen != Screen.LIBRARY) {
-        screen = if (screen == Screen.SCAN) Screen.ADD_BOOK else Screen.LIBRARY
+        screen = when (screen) {
+            Screen.SCAN, Screen.SETTINGS -> Screen.ADD_BOOK
+            else -> Screen.LIBRARY
+        }
     }
 
     when (screen) {
@@ -68,6 +75,7 @@ private fun BibliariumApp(container: AppContainer) {
 
         Screen.ADD_BOOK -> AddBookScreen(
             onScan = { screen = Screen.SCAN },
+            onOpenSettings = { screen = Screen.SETTINGS },
             onFilePicked = { uri ->
                 libraryViewModel.import(uri)
                 screen = Screen.LIBRARY
@@ -81,7 +89,19 @@ private fun BibliariumApp(container: AppContainer) {
             )
             ScanScreen(
                 viewModel = scanViewModel,
-                onBack = { screen = Screen.LIBRARY },
+                onBack = { screen = Screen.ADD_BOOK },
+                onOpenSettings = { screen = Screen.SETTINGS },
+            )
+        }
+
+        Screen.SETTINGS -> {
+            val context = LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                factory = SettingsViewModel.factory(context, container),
+            )
+            SettingsScreen(
+                viewModel = settingsViewModel,
+                onBack = { screen = Screen.ADD_BOOK },
             )
         }
     }

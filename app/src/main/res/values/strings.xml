@@ -24,18 +24,20 @@
     <string name="add_scan_hint">Приложение обойдёт выбранную папку со всеми вложенными и покажет, что нашло.</string>
     <string name="add_manual">Выбрать файл вручную</string>
     <string name="add_manual_hint">Системный выбор одного файла — если вы знаете, где книга лежит.</string>
+    <string name="add_settings">Доступ к файлам</string>
+    <string name="add_settings_hint">Папки для поиска и полный доступ ко всей памяти.</string>
 
     <string name="scan_title">Поиск книг</string>
-    <string name="scan_need_root_title">Где искать</string>
-    <string name="scan_need_root_hint">Выберите папку, с которой начать. Можно взять всю память телефона — вложенные папки приложение обойдёт само. Спросим только один раз.</string>
-    <string name="scan_choose_folder">Выбрать папку</string>
-    <string name="scan_change_folder">Сменить папку</string>
+    <string name="scan_no_access_title">Искать негде</string>
+    <string name="scan_no_access_hint">Добавьте папку для поиска или включите полный доступ к файлам.</string>
+    <string name="scan_open_settings">Доступ к файлам</string>
+    <string name="scan_source_full">Поиск идёт по всей памяти телефона.</string>
+    <string name="scan_source_folders">Поиск идёт по добавленным папкам.</string>
     <string name="scan_start">Начать поиск</string>
     <string name="scan_cancel">Отмена</string>
     <string name="scan_repeat">Искать заново</string>
 
     <string name="scan_progress_walking">Просмотрено %1$d папок, найдено %2$d книг</string>
-    <string name="scan_progress_archives">Проверяем архивы: %1$d из %2$d</string>
     <string name="scan_progress_matching">Сверяем с библиотекой: %1$d из %2$d</string>
     <string name="scan_progress_titles">Читаем названия: %1$d из %2$d</string>
 
@@ -62,6 +64,21 @@
     <string name="batch_hide_problems">Скрыть пропущенные</string>
     <string name="batch_close">Готово</string>
     <string name="batch_background_hint">Можно свернуть приложение — импорт не прервётся.</string>
+
+    <string name="settings_title">Доступ к файлам</string>
+    <string name="settings_full_access">Полный доступ к файлам</string>
+    <string name="settings_full_access_on">Включён. Поиск идёт по всей памяти, включая Download. Папки выбирать не нужно.</string>
+    <string name="settings_full_access_off">Выключен. Android не даёт выбрать обычным способом корень памяти и папку Download — полный доступ снимает это ограничение.</string>
+    <string name="settings_full_access_note">Переключатель открывает системные настройки: ни включить, ни выключить это разрешение из приложения нельзя.</string>
+    <string name="settings_folders">Папки для поиска</string>
+    <string name="settings_folders_hint">Поиск идёт по всем добавленным папкам сразу.</string>
+    <string name="settings_folders_not_needed">При полном доступе папки не нужны — поиск идёт по всей памяти.</string>
+    <string name="settings_folders_empty">Папки не добавлены.</string>
+    <string name="settings_add_folder">Добавить папку</string>
+    <string name="settings_remove_folder">Убрать</string>
+    <string name="settings_pick_blocked">Android не разрешает выбрать эту папку. Выберите вложенную папку или включите полный доступ в настройках.</string>
+    <string name="settings_pick_cancelled">Папка не добавлена. Учтите: Android не даёт выбрать корень памяти и папку Download — возьмите вложенную папку или включите полный доступ.</string>
+    <string name="settings_restrictions">С Android 11 система запрещает выбирать через выбор папки корень внутренней памяти, корни SD-карт и папку Download. Папки Android/data и Android/obb закрыты в обоих режимах — это ограничение системы. Папка Android/media доступна, книги из Telegram лежат там.</string>
 
     <string name="size_bytes">%1$d Б</string>
     <string name="size_kb">%1$s КБ</string>

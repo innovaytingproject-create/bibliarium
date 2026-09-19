@@ -25,6 +25,24 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    // Полный доступ к файлам живёт в отдельном варианте сборки: разрешение
+    // MANAGE_EXTERNAL_STORAGE объявлено только в app/src/full/AndroidManifest.xml.
+    // Для Play Store собирается вариант play — разрешения там нет вообще,
+    // и код об этом узнаёт через BuildConfig.ALL_FILES_ACCESS.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("full") {
+            dimension = "distribution"
+            buildConfigField("boolean", "ALL_FILES_ACCESS", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            buildConfigField("boolean", "ALL_FILES_ACCESS", "false")
+            versionNameSuffix = "-play"
+        }
     }
 
     buildTypes {

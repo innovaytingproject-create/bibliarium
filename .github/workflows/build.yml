@@ -44,13 +44,16 @@ jobs:
           # Кеш зависимостей и build cache. В main пишем, в PR только читаем.
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      # Собираются оба варианта: full — с MANAGE_EXTERNAL_STORAGE, play — без него.
+      # Второй собирается в том числе чтобы сразу видеть, что код без разрешения
+      # компилируется и работает через выбор папок.
+      - name: Build debug APKs
+        run: ./gradlew :app:assembleFullDebug :app:assemblePlayDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: bibliarium-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/*/debug/*.apk
           if-no-files-found: error
           retention-days: 30

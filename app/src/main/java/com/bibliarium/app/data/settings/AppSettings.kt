@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -15,21 +16,48 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 )
 
 /**
- * Настройки приложения. Пока здесь только корневая папка для поиска книг:
- * её выбирают один раз и больше не переспрашивают.
+ * Настройки приложения. Пока здесь только папки для поиска книг.
+ *
+ * Папок несколько, а не одна: с Android 11 система не даёт выбрать через SAF
+ * корень внутренней памяти и папку Download, поэтому одной папкой обойтись
+ * обычно не выходит.
  */
 class AppSettings(context: Context) {
 
     private val appContext = context.applicationContext
 
-    private val scanRootKey = stringPreferencesKey("scan_root_uri")
+    private val scanRootsKey = stringSetPreferencesKey("scan_root_uris")
 
-    val scanRootUri: Flow<String?> =
-        appContext.settingsDataStore.data.map { preferences -> preferences[scanRootKey] }
+    /** Одна папка из прошлой версии — подхватывается, чтобы не спрашивать заново. */
+    private val legacyScanRootKey = stringPreferencesKey("scan_root_uri")
 
-    suspend fun currentScanRootUri(): String? = scanRootUri.first()
+    val scanRoots: Flow<List<String>> =
+        appContext.settingsDataStore.data.map { preferences ->
+            val roots = preferences[scanRootsKey]
+            if (!roots.isNullOrEmpty()) {
+                roots.sorted()
+            } else {
+                listOfNotNull(preferences[legacyScanRootKey])
+            }
+        }
 
-    suspend fun setScanRootUri(uri: String) {
-        appContext.settingsDataStore.edit { preferences -> preferences[scanRootKey] = uri }
+    suspend fun currentScanRoots(): List<String> = scanRoots.first()
+
+    suspend fun addScanRoot(uri: String) {
+        appContext.settingsDataStore.edit { preferences ->
+            val current = preferences[scanRootsKey]
+                ?: setOfNotNull(preferences[legacyScanRootKey])
+            preferences[scanRootsKey] = current + uri
+            preferences.remove(legacyScanRootKey)
+        }
+    }
+
+    suspend fun removeScanRoot(uri: String) {
+        appContext.settingsDataStore.edit { preferences ->
+            val current = preferences[scanRootsKey]
+                ?: setOfNotNull(preferences[legacyScanRootKey])
+            preferences[scanRootsKey] = current - uri
+            preferences.remove(legacyScanRootKey)
+        }
     }
 }

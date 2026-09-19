@@ -1,7 +1,6 @@
 package com.bibliarium.app.fullaccess
 
 import android.os.Environment
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText

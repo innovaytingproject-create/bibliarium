@@ -2,6 +2,7 @@ package com.bibliarium.app.noaccess
 
 import android.app.Activity
 import android.app.Instrumentation
+import android.content.Intent
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.ui.test.assertIsDisplayed
@@ -102,6 +103,55 @@ class NoAccessTest {
                 compose.waitForIdle()
 
                 Intents.intended(hasAction(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            }
+        } finally {
+            Intents.release()
+        }
+    }
+
+    /**
+     * Системные настройки должны открываться поверх нашей задачи, а не в своей.
+     *
+     * С FLAG_ACTIVITY_NEW_TASK экран настроек уходит в отдельную задачу, и
+     * кнопка «Назад» из него возвращает не в приложение, а туда, что лежит
+     * под ним в той задаче — на многих прошивках это лаунчер. Снаружи это
+     * выглядит ровно как «нажал дать доступ, и дальше ничего»: разрешение
+     * выдано, но человек в приложение не вернулся.
+     */
+    @Test
+    fun fullAccessIntentOpensOnTopOfOurTask() {
+        Intents.init()
+        try {
+            Intents.intending(hasAction(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                .respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+
+            ActivityScenario.launch(MainActivity::class.java).use {
+                compose.onNodeWithText("Добавить книгу").performClick()
+                compose.waitForIdle()
+                compose.onNodeWithText("Доступ к файлам").performClick()
+                compose.waitForIdle()
+                compose.onNodeWithTag(TestTags.FULL_ACCESS_SWITCH).performClick()
+                compose.waitForIdle()
+
+                val sent = Intents.getIntents()
+                    .first { it.action == Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION }
+
+                TestArtifacts.note(
+                    "full-access-intent",
+                    "action=${sent.action} data=${sent.data} flags=0x${sent.flags.toString(16)}",
+                )
+
+                assertEquals(
+                    "Настройки должны открываться для нашего пакета",
+                    "package:com.bibliarium.app",
+                    sent.data?.toString(),
+                )
+                assertEquals(
+                    "FLAG_ACTIVITY_NEW_TASK уводит настройки в отдельную задачу, " +
+                        "и «Назад» не возвращает в приложение",
+                    0,
+                    sent.flags and Intent.FLAG_ACTIVITY_NEW_TASK,
+                )
             }
         } finally {
             Intents.release()

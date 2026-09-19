@@ -3,12 +3,11 @@
 #
 # Почему тесты запускаются через am instrument, а не через gradle:
 #
-# 1. Система убивает процесс приложения, когда меняется appop
-#    MANAGE_EXTERNAL_STORAGE. Выдать разрешение внутри теста нельзя — вместе
-#    с процессом умирает и прогон.
-# 2. Значит, разрешение надо выдавать между установкой и запуском. Задача
-#    connectedAndroidTest делает и то и другое разом, и её переустановка
-#    сбрасывает appop обратно.
+# 1. Менять appop MANAGE_EXTERNAL_STORAGE во время инструментального прогона
+#    нельзя: соединение UiAutomation рвётся, и прогон падает целиком. Значит,
+#    состояние разрешения надо выставлять снаружи, до запуска.
+# 2. Задача connectedAndroidTest ставит APK и запускает тесты одним куском,
+#    а переустановка сбрасывает appop обратно в default.
 #
 # Поэтому: один раз ставим APK, дальше сами управляем разрешением и запуском.
 
@@ -43,9 +42,15 @@ run_pass() {
   adb shell am force-stop "$PKG" || true
   adb shell am instrument -w -e package "$package" "$RUNNER" > "$log" 2>&1
 
-  mkdir -p "$OUT/$name"
-  adb pull "/sdcard/Android/data/$PKG/files/test-artifacts" "$OUT/$name/screenshots" 2>/dev/null || true
-  adb shell rm -rf "/sdcard/Android/data/$PKG/files/test-artifacts" 2>/dev/null || true
+  # Артефакты лежат во внутреннем каталоге приложения и достаются через run-as:
+  # на Android 11 shell не читает /sdcard/Android/data, и на API 30 выгрузка
+  # через внешнюю память молча не срабатывала.
+  local shots="$OUT/$name/screenshots"
+  mkdir -p "$shots"
+  for f in $(adb exec-out run-as "$PKG" ls files/test-artifacts 2>/dev/null); do
+    adb exec-out run-as "$PKG" cat "files/test-artifacts/$f" > "$shots/$f" 2>/dev/null || true
+  done
+  adb exec-out run-as "$PKG" rm -rf files/test-artifacts > /dev/null 2>&1 || true
 
   echo "--- $name ---"
   tail -40 "$log"
@@ -65,7 +70,7 @@ adb shell appops set "$PKG" MANAGE_EXTERNAL_STORAGE default || true
 run_pass "no-access" "com.bibliarium.app.noaccess"
 STATUS_NO_ACCESS=$?
 
-# --- Доказательство: выдача разрешения убивает процесс приложения ---
+# --- Проверка: переживает ли процесс приложения выдачу разрешения ---
 adb shell am force-stop "$PKG" || true
 adb shell appops set "$PKG" MANAGE_EXTERNAL_STORAGE default || true
 adb shell am start -n "$PKG/$PKG.ui.MainActivity" > /dev/null 2>&1 || true

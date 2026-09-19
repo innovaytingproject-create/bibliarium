@@ -1,6 +1,5 @@
 package com.bibliarium.app
 
-import androidx.test.platform.app.InstrumentationRegistry
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.zip.CRC32
@@ -11,9 +10,8 @@ import java.util.zip.ZipOutputStream
  * Тестовые книги. Собираются кодом, а не лежат в репозитории двоичными файлами:
  * так видно, что именно внутри, и нечему протухнуть.
  *
- * Файлы сначала пишутся в каталог приложения (туда можно писать без разрешений),
- * а потом копируются в общую память через shell — у shell доступ есть всегда,
- * поэтому подготовка данных не зависит от того, выдан ли приложению полный доступ.
+ * Раскладываются прямо в общую память из процесса теста, поэтому годятся только
+ * для прогона, где полный доступ уже выдан.
  */
 object BookFixtures {
 
@@ -25,33 +23,37 @@ object BookFixtures {
 
     val fileNames = listOf("valid.epub", "valid.fb2", "archived.fb2.zip", "broken.epub")
 
-    /** Кладёт набор книг в общую память эмулятора. Возвращает путь к папке. */
+    /**
+     * Кладёт набор книг в общую память. Пишем напрямую из процесса теста:
+     * на Android 11 shell не читает /sdcard/Android/data, поэтому раскладывать
+     * файлы через промежуточный каталог приложения и `cp` нельзя — на API 30
+     * так ничего не доезжало. Вызывать только там, где разрешение уже выдано.
+     */
     fun seed(): String {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val staging = File(context.getExternalFilesDir(null), "fixtures").apply {
-            deleteRecursively()
-            mkdirs()
+        val directory = File(DIRECTORY)
+        directory.deleteRecursively()
+        check(directory.mkdirs() || directory.isDirectory) {
+            "Не удалось создать $DIRECTORY — есть ли полный доступ к файлам?"
         }
 
-        File(staging, "valid.epub").writeBytes(epub(EPUB_TITLE))
-        File(staging, "valid.fb2").writeBytes(fb2(FB2_TITLE))
-        File(staging, "archived.fb2.zip").writeBytes(fb2Archive(FB2_ZIP_TITLE))
+        File(directory, "valid.epub").writeBytes(epub(EPUB_TITLE))
+        File(directory, "valid.fb2").writeBytes(fb2(FB2_TITLE))
+        File(directory, "archived.fb2.zip").writeBytes(fb2Archive(FB2_ZIP_TITLE))
         // Расширение книжное, содержимое — мусор: импорт такого файла должен
         // отказаться, а не уронить всю пачку.
-        File(staging, "broken.epub").writeText("это не epub, а просто текст")
+        File(directory, "broken.epub").writeText("это не epub, а просто текст")
 
-        Shell.run("rm -rf $DIRECTORY")
-        Shell.run("mkdir -p $DIRECTORY")
-        for (name in fileNames) {
-            Shell.run("cp ${staging.absolutePath}/$name $DIRECTORY/$name")
-        }
-        Shell.run("sync")
-
+        TestArtifacts.note(
+            "fixtures-seeded",
+            directory.listFiles()
+                ?.joinToString(separator = ", ") { "${it.name} ${it.length()}" }
+                ?: "каталог не читается",
+        )
         return DIRECTORY
     }
 
     fun cleanUp() {
-        Shell.run("rm -rf $DIRECTORY")
+        runCatching { File(DIRECTORY).deleteRecursively() }
     }
 
     private fun fb2(title: String): ByteArray = """

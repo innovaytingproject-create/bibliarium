@@ -1,5 +1,6 @@
 package com.bibliarium.app.ui.scan
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -66,6 +67,23 @@ class ScanViewModel(
     private var scanJob: Job? = null
     private var batchJob: Job? = null
 
+    /**
+     * Прогресс приходит на каждую просмотренную папку. На телефоне с тысячами
+     * папок это тысячи перерисовок подряд — экран начинает захлёбываться,
+     * а полезного в них ничего. Поэтому обновляем не чаще, чем раз в 120 мс,
+     * и всегда пропускаем смену этапа.
+     */
+    private var lastProgressAt = 0L
+    private var lastPhase: ScanPhase? = null
+
+    private fun publishProgress(progress: ScanProgress) {
+        val now = SystemClock.uptimeMillis()
+        if (progress.phase == lastPhase && now - lastProgressAt < PROGRESS_INTERVAL_MS) return
+        lastProgressAt = now
+        lastPhase = progress.phase
+        _state.update { it.copy(progress = progress) }
+    }
+
     init {
         refreshAccess(autoStart = true)
     }
@@ -115,40 +133,38 @@ class ScanViewModel(
                 }
 
                 val raw = access.findBooks { scanned, found ->
-                    _state.update {
-                        it.copy(
-                            progress = ScanProgress(
-                                phase = ScanPhase.WALKING,
-                                scanned = scanned,
-                                found = found,
-                            ),
-                        )
-                    }
+                    publishProgress(
+                        ScanProgress(
+                            phase = ScanPhase.WALKING,
+                            scanned = scanned,
+                            found = found,
+                        ),
+                    )
                 }
 
                 val known = runCatching { bookStore.fingerprints() }.getOrDefault(emptyMap())
                 val checked = scanner.markAlreadyAdded(raw, known) { processed, total ->
-                    _state.update {
-                        it.copy(
-                            progress = ScanProgress(
-                                phase = ScanPhase.MATCHING,
-                                processed = processed,
-                                total = total,
-                            ),
-                        )
-                    }
+                    publishProgress(
+                        ScanProgress(
+                            phase = ScanPhase.MATCHING,
+                            processed = processed,
+                            total = total,
+                        ),
+                    )
                 }
 
                 _state.update { it.copy(books = checked, stage = ScanStage.RESULTS) }
 
                 scanner.readTitles(checked).collect { update ->
+                    publishProgress(
+                        ScanProgress(
+                            phase = ScanPhase.READING_TITLES,
+                            processed = update.processed,
+                            total = update.total,
+                        ),
+                    )
                     _state.update { current ->
                         current.copy(
-                            progress = ScanProgress(
-                                phase = ScanPhase.READING_TITLES,
-                                processed = update.processed,
-                                total = update.total,
-                            ),
                             books = if (update.title == null) {
                                 current.books
                             } else {
@@ -270,6 +286,8 @@ class ScanViewModel(
     }
 
     companion object {
+        private const val PROGRESS_INTERVAL_MS = 120L
+
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 ScanViewModel(

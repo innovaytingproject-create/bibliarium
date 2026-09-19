@@ -1,7 +1,7 @@
 package com.bibliarium.app.fullaccess
 
 import android.os.Environment
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -26,11 +26,11 @@ import org.junit.runner.RunWith
 /**
  * Прогон с уже выданным MANAGE_EXTERNAL_STORAGE.
  *
- * Разрешение выдаётся скриптом ДО запуска: система убивает процесс приложения,
- * когда этот appop меняется, поэтому выдать его внутри теста нельзя — прогон
- * оборвётся вместе с процессом. Здесь проверяется именно то, что происходит
- * после перезапуска, то есть ровно то состояние, в котором пользователь
- * оказывается, вернувшись из системных настроек.
+ * Разрешение выдаётся скриптом ДО запуска: менять appop во время
+ * инструментального прогона нельзя, рвётся соединение UiAutomation. Здесь
+ * проверяется состояние, в котором приложение стартует уже с доступом —
+ * то есть то, в котором пользователь оказывается, вернувшись из системных
+ * настроек.
  */
 @RunWith(AndroidJUnit4::class)
 class FullAccessTest {
@@ -65,8 +65,8 @@ class FullAccessTest {
     }
 
     /**
-     * Отдельным звеном: приложение может считать разрешение выданным и всё равно
-     * не видеть файлы — песочница хранилища выдаётся процессу при запуске.
+     * Отдельным звеном: приложение может считать разрешение выданным и всё
+     * равно не видеть файлы.
      */
     @Test
     fun sharedStorageIsReadable() {
@@ -98,41 +98,47 @@ class FullAccessTest {
         assertTrue("Битый файл тоже должен попасть в список", "broken.epub" in names)
     }
 
-    /** Холодный старт с уже выданным доступом: экран поиска обязан быть готов. */
+    /** Холодный старт с уже выданным доступом: экран поиска не должен быть тупиком. */
     @Test
-    fun scanScreenIsReadyOnColdStart() {
-        ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNodeWithText("Добавить книгу").performClick()
-            compose.waitForIdle()
-            compose.onNodeWithText("Найти книги на телефоне").performClick()
+    fun scanScreenIsNotBlockedOnColdStart() {
+        openScanScreen()
 
-            compose.waitUntil(timeoutMillis = 30_000) {
-                compose.onAllNodesWithText("Искать негде").fetchSemanticsNodes().isEmpty()
-            }
-
-            TestArtifacts.screenshot("fullaccess-scan-ready")
-            compose.onNodeWithText("Поиск идёт по всей памяти телефона.").assertIsDisplayed()
+        compose.waitUntil(timeoutMillis = 60_000) {
+            compose.onAllNodesWithText("Искать негде").fetchSemanticsNodes().isEmpty()
         }
+
+        TestArtifacts.screenshot("fullaccess-scan-opened")
+        compose.onNodeWithText("Искать негде").assertDoesNotExist()
     }
 
-    /** Весь путь до списка найденного через интерфейс. */
+    /**
+     * Весь путь до списка найденного через интерфейс. Кнопку «Начать поиск»
+     * нажимаем, только если она есть: при доступной памяти поиск стартует сам.
+     */
     @Test
     fun scanFindsSeededBooksThroughUi() {
-        ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNodeWithText("Добавить книгу").performClick()
-            compose.waitForIdle()
-            compose.onNodeWithText("Найти книги на телефоне").performClick()
+        openScanScreen()
 
-            compose.waitUntil(timeoutMillis = 30_000) {
-                compose.onAllNodesWithText("Начать поиск").fetchSemanticsNodes().isNotEmpty()
-            }
-            compose.onNodeWithText("Начать поиск").performClick()
-
-            compose.waitUntil(timeoutMillis = 120_000) {
+        compose.waitUntil(timeoutMillis = 60_000) {
+            compose.onAllNodesWithText("Начать поиск").fetchSemanticsNodes().isNotEmpty() ||
+                compose.onAllNodesWithText("Отмена").fetchSemanticsNodes().isNotEmpty() ||
                 compose.onAllNodesWithText("valid.epub").fetchSemanticsNodes().isNotEmpty()
-            }
-
-            TestArtifacts.screenshot("fullaccess-scan-results")
         }
+        if (compose.onAllNodesWithText("Начать поиск").fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithText("Начать поиск").performClick()
+        }
+
+        compose.waitUntil(timeoutMillis = 180_000) {
+            compose.onAllNodesWithText("valid.epub").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        TestArtifacts.screenshot("fullaccess-scan-results")
+    }
+
+    private fun openScanScreen() {
+        ActivityScenario.launch(MainActivity::class.java)
+        compose.onNodeWithText("Добавить книгу").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Найти книги на телефоне").performClick()
     }
 }

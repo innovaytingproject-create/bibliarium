@@ -13,31 +13,43 @@
 Всё, от чего зависит воспроизводимость, прибито гвоздями:
 
 - JDK задан числом (`17`), не latest и не автоопределение
+- `compileSdk` держится на стабильной платформе 36, а не на preview
 - версия Gradle задаётся только wrapper'ом; `gradle/wrapper/gradle-wrapper.properties`
   закоммичен, `distributionUrl` указывает точную версию, `distributionSha256Sum`
   проверяет скачанный дистрибутив
 - `gradle-wrapper.jar` сверен с контрольной суммой, опубликованной Gradle
-  (`7a9ce74c…262c5d` для 9.7.0)
+  (`76805e32…93f3` для 9.1.0)
 - все версии зависимостей — числа в `gradle/libs.versions.toml`, ни одного `+`
   и ни одного `latest.release`
 - кеш Gradle включён в workflow: в `main` пишется, в PR только читается
 
 ## Стек
 
-Версии сверены с Maven Central и Google Maven 19.09.2026. Связка AGP / Kotlin / Gradle
-взята из самого Readium 3.4.0, чтобы гарантированно совпасть с движком чтения.
+Версии сверены с Maven Central и Google Maven 19.09.2026. Взят согласованный набор,
+на котором собирается Readium 3.3.0 — вся связка держится на стабильном compileSdk 36.
 
 | | версия |
 |---|---|
-| Gradle | 9.7.0 |
-| Android Gradle Plugin | 9.3.1 (Kotlin встроен в AGP 9, отдельный KGP не подключается) |
-| Kotlin | 2.4.20 |
-| compileSdk / targetSdk | 37 |
+| Gradle | 9.1.0 |
+| Android Gradle Plugin | 9.0.0 (Kotlin встроен в AGP 9, отдельный KGP не подключается) |
+| Kotlin | 2.3.20 |
+| JDK | 17 |
+| compileSdk / targetSdk | 36 |
 | minSdk | 26 |
-| Compose BOM | 2026.09.00 |
-| Room | 2.8.5 (KSP 2.3.9) |
-| Readium Kotlin Toolkit | 3.4.0 |
-| Coil | 3.6.3 |
+| Compose | 1.10.5, Material3 1.4.0 |
+| Room | 2.8.4 (KSP 2.3.4) |
+| Readium Kotlin Toolkit | 3.3.0 |
+| Coil | 3.5.0 |
+
+### Почему не самые свежие версии
+
+Readium 3.4.0, androidx core 1.19.0, Compose 1.12.x и Coil 3.6.x объявляют в метаданных
+AAR `minCompileSdk=37`. Платформы `android-37` в стабильном канале SDK нет — в
+репозитории Google максимум `platforms;android-36`, а 37 существует только как
+`platforms;android-CANARY`. Собирать приложение, которое ставится на телефон, против
+preview-платформы — ровно тот случай, когда сборка ломается задним числом, поэтому
+взята предыдущая согласованная волна версий. Все `minCompileSdk` проверены по
+метаданным AAR, а не на глаз.
 
 ## Архитектура
 

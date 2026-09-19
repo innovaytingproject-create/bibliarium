@@ -1,25 +1,36 @@
-# Все версии проверены на Maven Central / Google Maven 19.09.2026.
-# Комбинация AGP/Kotlin/Gradle взята из самого Readium 3.4.0 — она заведомо рабочая.
+# Весь стек держится на стабильном compileSdk 36.
+#
+# Свежие androidx и Readium 3.4.0 объявляют в метаданных AAR minCompileSdk=37,
+# а платформы android-37 в стабильном канале SDK нет — она существует только как
+# platforms;android-CANARY. Собирать приложение, которое ставится на телефон,
+# против preview-платформы незачем, поэтому взят согласованный набор версий,
+# на котором собирается Readium 3.3.0: у всех minCompileSdk <= 36.
+#
+# Версии сверены с Maven Central и Google Maven 19.09.2026. Ни одного `+`
+# и ни одного latest.release — только числа.
+
 [versions]
-agp = "9.3.1"
-kotlin = "2.4.20"
-ksp = "2.3.9"
+agp = "9.0.0"
+# Kotlin встроен в AGP 9; здесь версия нужна только плагину Compose-компилятора.
+kotlin = "2.3.20"
+ksp = "2.3.4"
 
 desugar = "2.1.5"
 
-readium = "3.4.0"
+readium = "3.3.0"
 
-androidx-core = "1.19.0"
+androidx-core = "1.18.0"
 androidx-activity = "1.13.0"
-androidx-lifecycle = "2.11.0"
-androidx-room = "2.8.5"
-androidx-paging = "3.5.1"
+androidx-lifecycle = "2.10.0"
+androidx-room = "2.8.4"
+androidx-paging = "3.4.2"
 androidx-datastore = "1.2.1"
 
-compose-bom = "2026.09.00"
+compose = "1.10.5"
+compose-material3 = "1.4.0"
 
-coil = "3.6.3"
-coroutines = "1.11.0"
+coil = "3.5.0"
+coroutines = "1.10.2"
 
 [libraries]
 desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
@@ -31,8 +42,8 @@ readium-navigator = { module = "org.readium.kotlin-toolkit:readium-navigator", v
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidx-lifecycle" }
-androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidx-datastore" }
 
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "androidx-room" }
@@ -43,13 +54,12 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "androidx-paging" }
 androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "androidx-paging" }
 
-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
-compose-ui = { module = "androidx.compose.ui:ui" }
-compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
-compose-foundation = { module = "androidx.compose.foundation:foundation" }
-compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-ui = { module = "androidx.compose.ui:ui", version.ref = "compose" }
+compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics", version.ref = "compose" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "compose" }
+compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "compose" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "compose-material3" }
 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 

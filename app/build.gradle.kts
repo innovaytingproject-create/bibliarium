@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.bibliarium.app"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.bibliarium.app"
         minSdk = 26
-        targetSdk = 37
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -54,7 +54,6 @@ dependencies {
     implementation(libs.readium.shared)
     implementation(libs.readium.streamer)
 
-    implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)
     implementation(libs.compose.foundation)

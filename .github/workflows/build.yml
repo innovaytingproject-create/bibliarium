@@ -16,8 +16,8 @@ jobs:
         uses: actions/checkout@v5
 
       # JDK задан числом намеренно: latest и автоопределение ломают сборку
-      # задним числом. 17 — та версия, на которой собирается сам Readium 3.4.0
-      # с этой же связкой AGP 9.3.1 / Gradle 9.7.0.
+      # задним числом. 17 — та версия, на которой собирается сам Readium 3.3.0
+      # с этой же связкой AGP 9.0.0 / Gradle 9.1.0.
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -27,13 +27,13 @@ jobs:
       # Стороннее действие для SDK не используем: android-actions/setup-android
       # тянет давно удалённый пакет tools и падает. На раннере Android SDK уже
       # стоит, нужна только платформа 37.
-      - name: Install Android platform 37
+      - name: Install Android platform 36
         run: |
           set -eu
           SDKMANAGER=$(ls "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin/sdkmanager | head -1)
           echo "sdkmanager: $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-          "$SDKMANAGER" --install "platforms;android-37"
+          "$SDKMANAGER" --install "platforms;android-36"
 
       # Версию Gradle задаёт только wrapper: gradle/wrapper/gradle-wrapper.properties
       # закоммичен, distributionUrl указывает точную версию, distributionSha256Sum

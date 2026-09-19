@@ -70,6 +70,7 @@
     <string name="settings_full_access_on">Включён. Поиск идёт по всей памяти, включая Download. Папки выбирать не нужно.</string>
     <string name="settings_full_access_off">Выключен. Android не даёт выбрать обычным способом корень памяти и папку Download — полный доступ снимает это ограничение.</string>
     <string name="settings_full_access_note">Переключатель открывает системные настройки: ни включить, ни выключить это разрешение из приложения нельзя.</string>
+    <string name="settings_full_access_manual">Системный экран не открылся. Откройте вручную: Настройки → Приложения → Bibliarium → Разрешения → Доступ ко всем файлам.</string>
     <string name="settings_folders">Папки для поиска</string>
     <string name="settings_folders_hint">Поиск идёт по всем добавленным папкам сразу.</string>
     <string name="settings_folders_not_needed">При полном доступе папки не нужны — поиск идёт по всей памяти.</string>

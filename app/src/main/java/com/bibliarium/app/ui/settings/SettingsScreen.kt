@@ -111,8 +111,11 @@ fun SettingsScreen(
                                     modifier = Modifier.testTag(TestTags.FULL_ACCESS_SWITCH),
                                     checked = state.allFilesGranted,
                                     onCheckedChange = {
-                                        viewModel.allFilesAccessIntent()
-                                            ?.let(context::startActivity)
+                                        val opened = viewModel.allFilesAccessIntents().any {
+                                                intent ->
+                                            runCatching { context.startActivity(intent) }.isSuccess
+                                        }
+                                        viewModel.onSettingsOpened(opened)
                                     },
                                 )
                             }
@@ -132,6 +135,14 @@ fun SettingsScreen(
                                 color = colors.textSecondary,
                                 modifier = Modifier.padding(top = spacing.xs),
                             )
+                            if (state.settingsUnavailable) {
+                                Text(
+                                    text = stringResource(R.string.settings_full_access_manual),
+                                    style = type.bodySm,
+                                    color = colors.accent,
+                                    modifier = Modifier.padding(top = spacing.sm),
+                                )
+                            }
                         }
                         HorizontalDivider(thickness = 1.dp, color = colors.line)
                     }

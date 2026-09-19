@@ -40,6 +40,8 @@ data class SettingsUiState(
     val allFilesSupported: Boolean = false,
     val allFilesGranted: Boolean = false,
     val pickFailure: FolderPickFailure? = null,
+    /** Системный экран выдачи разрешения не открылся ни одним из способов. */
+    val settingsUnavailable: Boolean = false,
 )
 
 class SettingsViewModel(
@@ -112,15 +114,32 @@ class SettingsViewModel(
     }
 
     /**
-     * Программно ни выдать, ни отозвать MANAGE_EXTERNAL_STORAGE нельзя —
-     * и включение, и выключение идут через системные настройки.
+     * Куда отправлять человека за разрешением. Программно ни выдать, ни отозвать
+     * MANAGE_EXTERNAL_STORAGE нельзя — и включение, и выключение идут через
+     * системные настройки.
+     *
+     * FLAG_ACTIVITY_NEW_TASK здесь не ставится намеренно. Он нужен, только когда
+     * активность запускают не из активности, а у нас запуск идёт из Activity.
+     * С этим флагом экран настроек уходит в отдельную задачу, и «Назад» оттуда
+     * возвращает не в приложение, а туда, что лежит под ним в той задаче —
+     * на многих прошивках это лаунчер.
+     *
+     * Кандидаты идут по убыванию точности: на части прошивок точного экрана
+     * просто нет, и тогда открывается хотя бы страница приложения.
      */
-    fun allFilesAccessIntent(): Intent? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        return Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
-            data = Uri.parse("package:${context.packageName}")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
+    fun allFilesAccessIntents(): List<Intent> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return emptyList()
+        val self = Uri.parse("package:${context.packageName}")
+        return listOf(
+            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION, self),
+            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, self),
+        )
+    }
+
+    /** Ни один системный экран не открылся — показываем, куда нажимать руками. */
+    fun onSettingsOpened(opened: Boolean) {
+        _state.update { it.copy(settingsUnavailable = !opened) }
     }
 
     /** Проверяем, что дерево действительно читается, а не только формально выдано. */

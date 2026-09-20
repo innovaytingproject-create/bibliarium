@@ -249,7 +249,7 @@ internal class ConversionState {
                 titleText.setLength(0)
             }
 
-            else -> openTag(name)?.let { epub.writeRaw(it) }
+            else -> if (!inTitle) openTag(name)?.let { epub.writeRaw(it) }
         }
     }
 
@@ -280,7 +280,7 @@ internal class ConversionState {
                 sectionDepth = (sectionDepth - 1).coerceAtLeast(0)
             }
 
-            else -> closeTag(name)?.let { epub.writeRaw(it) }
+            else -> if (!inTitle) closeTag(name)?.let { epub.writeRaw(it) }
         }
     }
 

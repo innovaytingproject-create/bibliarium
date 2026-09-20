@@ -120,6 +120,10 @@ class Fb2ConverterTest {
         assertTrue("Сноска не помечена как footnote", notes.contains("epub:type=\"footnote\""))
         assertTrue("Первой сноски нет", notes.contains("id=\"n1\""))
         assertTrue("Текст сноски потерян", notes.contains("Пояснение к первому утверждению"))
+        assertTrue(
+            "В сноске остался пустой абзац от заголовка: $notes",
+            !notes.contains("<p></p>"),
+        )
     }
 
     @Test

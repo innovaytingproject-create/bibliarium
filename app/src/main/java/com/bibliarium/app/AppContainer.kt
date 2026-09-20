@@ -1,8 +1,10 @@
 package com.bibliarium.app
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.room.Room
 import com.bibliarium.app.data.db.BibliariumDatabase
+import com.bibliarium.app.data.db.BookDao
 import com.bibliarium.app.data.db.ImportQueueDao
 import com.bibliarium.app.data.importer.BatchImporter
 import com.bibliarium.app.data.importer.BookImporter
@@ -81,6 +83,17 @@ class AppContainer(context: Context) {
     }
 
     val bookStore: BookStore by lazy { LocalBookStore(database.bookDao(), bookImporter) }
+
+    /**
+     * Прямой доступ к таблице книг — только для инструментальных проверок.
+     *
+     * Полку положено проверять на пятистах книгах (раздел 7 ТЗ), а завести
+     * их через импорт нельзя: это пятьсот настоящих файлов и минуты работы.
+     * Приложение этим путём не пользуется: для него хранение по-прежнему
+     * закрыто за [BookStore].
+     */
+    @VisibleForTesting
+    val bookDaoForTests: BookDao get() = database.bookDao()
 
     val highlightStore: HighlightStore by lazy { LocalHighlightStore(database.highlightDao()) }
 

@@ -135,9 +135,11 @@ class ReaderTest {
         tapCenter()
         device.wait(Until.gone(By.text("Назад")), PANEL_TIMEOUT)
 
-        assertNotNull(
+        // Ждём, а не смотрим сразу: после того как панели спрятались, страница
+        // перекладывается, и на миг на ней нет ни строчки.
+        assertTrue(
             "Первая страница не показала начало главы",
-            device.findObject(By.textContains("МЕТКА-НАЧАЛО")),
+            device.wait(Until.hasObject(By.textContains("МЕТКА-НАЧАЛО")), PANEL_TIMEOUT),
         )
 
         // Листание видно по тексту на экране: начало главы должно уйти.

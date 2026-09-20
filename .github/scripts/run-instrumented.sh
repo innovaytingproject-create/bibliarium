@@ -119,6 +119,10 @@ STATUS_FB2=$?
 run_pass "reader" "com.bibliarium.app.readertests"
 STATUS_READER=$?
 
+# --- Прогон 5: полка. Пятьсот книг и прокрутка — раздел 7 ТЗ.
+run_pass "shelf" "com.bibliarium.app.shelftests"
+STATUS_SHELF=$?
+
 adb shell appops get "$PKG" MANAGE_EXTERNAL_STORAGE > "$OUT/appops-after.txt" 2>&1 || true
 
 sleep 2
@@ -126,9 +130,10 @@ kill "$LOGCAT_PID" 2>/dev/null || true
 
 echo "=== содержимое $OUT"
 find "$OUT" -type f | head -50
-echo "=== статусы: без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, fb2=$STATUS_FB2, чтение=$STATUS_READER"
+echo "=== статусы: без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, fb2=$STATUS_FB2, чтение=$STATUS_READER, полка=$STATUS_SHELF"
 
 if [ "$STATUS_NO_ACCESS" -ne 0 ]; then exit "$STATUS_NO_ACCESS"; fi
 if [ "$STATUS_FULL_ACCESS" -ne 0 ]; then exit "$STATUS_FULL_ACCESS"; fi
 if [ "$STATUS_FB2" -ne 0 ]; then exit "$STATUS_FB2"; fi
-exit "$STATUS_READER"
+if [ "$STATUS_READER" -ne 0 ]; then exit "$STATUS_READER"; fi
+exit "$STATUS_SHELF"

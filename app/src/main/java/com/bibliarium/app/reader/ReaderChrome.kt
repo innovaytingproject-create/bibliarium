@@ -32,6 +32,16 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 import org.readium.r2.shared.ExperimentalReadiumApi
 
 /**
+ * Что сейчас поверх книги. Состояние задаёт активность — она же ставит
+ * навигатор, поэтому источник один и разойтись им негде.
+ */
+sealed interface ReaderChromeState {
+    data object Loading : ReaderChromeState
+    data class Failed(val error: ReaderOpenError) : ReaderChromeState
+    data class Content(val title: String, val engine: ReaderEngine) : ReaderChromeState
+}
+
+/**
  * Панели поверх текста. Номеров страниц нет намеренно: при смене размера шрифта
  * они врут, поэтому показываем только процент и оценку оставшегося времени.
  */
@@ -39,11 +49,40 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 @Composable
 fun ReaderChrome(
     viewModel: ReaderViewModel,
+    chromeState: ReaderChromeState,
     visible: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    when (chromeState) {
+        is ReaderChromeState.Loading -> ReaderMessage(
+            text = stringResource(R.string.reader_loading),
+            modifier = modifier,
+        )
+
+        is ReaderChromeState.Failed -> ReaderFailure(chromeState.error, onClose, modifier)
+
+        is ReaderChromeState.Content -> ReaderPanels(
+            viewModel = viewModel,
+            title = chromeState.title,
+            engine = chromeState.engine,
+            visible = visible,
+            onClose = onClose,
+            modifier = modifier,
+        )
+    }
+}
+
+@OptIn(ExperimentalReadiumApi::class)
+@Composable
+private fun ReaderPanels(
+    viewModel: ReaderViewModel,
+    title: String,
+    engine: ReaderEngine,
+    visible: Boolean,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val position by viewModel.position.collectAsStateWithLifecycle()
     var settingsOpen by remember { mutableStateOf(false) }
 
@@ -51,107 +90,84 @@ fun ReaderChrome(
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
 
-    when (val current = state) {
-        is ReaderState.Loading -> Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            Text(
-                text = stringResource(R.string.reader_loading),
-                style = type.bodyMd,
-                color = colors.textSecondary,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.surface)
+                    .statusBarsPadding()
+                    .padding(horizontal = spacing.margin, vertical = spacing.sm),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = type.labelMd,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(end = spacing.sm),
+                )
+                TextButton(onClick = onClose) {
+                    Text(
+                        text = stringResource(R.string.reader_close),
+                        style = type.labelMd,
+                        color = colors.textSecondary,
+                    )
+                }
+            }
         }
 
-        is ReaderState.Failed -> ReaderFailure(current.error, onClose, modifier)
-
-        is ReaderState.Ready -> {
-            val content = current.content
-
-            Box(modifier = modifier.fillMaxSize()) {
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.TopCenter),
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.surface),
+            ) {
+                HorizontalDivider(thickness = 1.dp, color = colors.line)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = spacing.margin, vertical = spacing.sm),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(colors.surface)
-                            .statusBarsPadding()
-                            .padding(horizontal = spacing.margin, vertical = spacing.sm),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = content.book.title,
-                                style = type.labelMd,
-                                color = colors.textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(end = spacing.sm),
-                            )
-                            TextButton(onClick = onClose) {
-                                Text(
-                                    text = stringResource(R.string.reader_close),
-                                    style = type.labelMd,
-                                    color = colors.textSecondary,
-                                )
-                            }
-                        }
+                    TextButton(onClick = { settingsOpen = !settingsOpen }) {
+                        Text(
+                            text = stringResource(R.string.reader_settings),
+                            style = type.labelMd,
+                            color = colors.accent,
+                        )
                     }
+                    Text(
+                        text = progressLabel(position),
+                        style = type.labelMd,
+                        color = colors.textSecondary,
+                    )
                 }
 
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(colors.surface),
-                    ) {
-                        HorizontalDivider(thickness = 1.dp, color = colors.line)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .navigationBarsPadding()
-                                .padding(horizontal = spacing.margin, vertical = spacing.sm),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            TextButton(onClick = { settingsOpen = !settingsOpen }) {
-                                Text(
-                                    text = stringResource(R.string.reader_settings),
-                                    style = type.labelMd,
-                                    color = colors.accent,
-                                )
-                            }
-                            Text(
-                                text = progressLabel(position),
-                                style = type.labelMd,
-                                color = colors.textSecondary,
-                            )
-                        }
-
-                        if (settingsOpen) {
-                            HorizontalDivider(thickness = 1.dp, color = colors.line)
-                            ReaderSettingsPanel(
-                                viewModel = viewModel,
-                                engine = content.engine,
-                                modifier = Modifier.padding(
-                                    horizontal = spacing.margin,
-                                    vertical = spacing.sm,
-                                ),
-                            )
-                        }
-                    }
+                if (settingsOpen) {
+                    HorizontalDivider(thickness = 1.dp, color = colors.line)
+                    ReaderSettingsPanel(
+                        viewModel = viewModel,
+                        engine = engine,
+                        modifier = Modifier.padding(
+                            horizontal = spacing.margin,
+                            vertical = spacing.sm,
+                        ),
+                    )
                 }
             }
         }
@@ -165,6 +181,21 @@ private fun progressLabel(position: ReadingPosition): String {
     return when {
         minutes < 60 -> stringResource(R.string.reader_progress_minutes, percent, minutes)
         else -> stringResource(R.string.reader_progress_hours, percent, minutes / 60)
+    }
+}
+
+@Composable
+private fun ReaderMessage(text: String, modifier: Modifier = Modifier) {
+    val colors = BibliariumTheme.colors
+    val type = BibliariumTheme.type
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.background),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text = text, style = type.bodyMd, color = colors.textSecondary)
     }
 }
 

@@ -55,6 +55,7 @@ class ReaderTest {
             val locator = awaitLocator(book.id)
             TestArtifacts.screenshot("reader-epub")
             assertNotNull("EPUB не открылся: навигатор не сообщил позицию", locator)
+            assertLoadingGone()
         }
     }
 
@@ -65,6 +66,7 @@ class ReaderTest {
             val locator = awaitLocator(book.id)
             TestArtifacts.screenshot("reader-pdf")
             assertNotNull("PDF не открылся: навигатор не сообщил позицию", locator)
+            assertLoadingGone()
         }
     }
 
@@ -128,6 +130,13 @@ class ReaderTest {
             }
             TestArtifacts.screenshot("reader-broken")
             compose.onNodeWithText(BROKEN_MESSAGE).assertIsDisplayed()
+        }
+    }
+
+    /** Надпись загрузки не должна оставаться поверх открытой книги. */
+    private fun assertLoadingGone() {
+        compose.waitUntil(timeoutMillis = OPEN_TIMEOUT_MS) {
+            compose.onAllNodesWithText(LOADING_MESSAGE).fetchSemanticsNodes().isEmpty()
         }
     }
 
@@ -201,5 +210,6 @@ class ReaderTest {
         const val PROGRESS_EPSILON = 0.0005f
         const val POSITION_TOLERANCE = 0.02f
         const val BROKEN_MESSAGE = "Не удалось открыть книгу — файл повреждён."
+        const val LOADING_MESSAGE = "Открываем книгу…"
     }
 }

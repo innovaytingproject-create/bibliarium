@@ -54,6 +54,12 @@ class ReaderActivity : AppCompatActivity() {
     private var navigator: VisualNavigator? = null
     private var chromeVisible by mutableStateOf(false)
 
+    // Что показывать поверх книги. Состояние держит активность, а не отдельная
+    // подписка внутри Compose: навигатор ставит именно она, и раздвоение
+    // источника уже приводило к тому, что «Открываем книгу…» висело поверх
+    // открытого текста.
+    private var chromeState by mutableStateOf<ReaderChromeState>(ReaderChromeState.Loading)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
 
@@ -75,6 +81,7 @@ class ReaderActivity : AppCompatActivity() {
             BibliariumTheme(variant = ThemeVariant.ARCHIVE) {
                 ReaderChrome(
                     viewModel = viewModel,
+                    chromeState = chromeState,
                     visible = chromeVisible,
                     onClose = { finish() },
                 )
@@ -89,13 +96,26 @@ class ReaderActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collectLatest { state ->
-                    if (state is ReaderState.Ready && navigator == null) {
-                        installNavigator(state.content)
-                    }
-                    // Пока книга не открылась или открыть не вышло, панели
-                    // показываем сразу: иначе экран выглядит пустым и мёртвым.
-                    if (state !is ReaderState.Ready) {
-                        chromeVisible = true
+                    when (state) {
+                        is ReaderState.Loading -> {
+                            chromeState = ReaderChromeState.Loading
+                        }
+
+                        is ReaderState.Failed -> {
+                            chromeState = ReaderChromeState.Failed(state.error)
+                            // Иначе экран выглядит пустым и мёртвым.
+                            chromeVisible = true
+                        }
+
+                        is ReaderState.Ready -> {
+                            if (navigator == null) {
+                                installNavigator(state.content)
+                            }
+                            chromeState = ReaderChromeState.Content(
+                                title = state.content.book.title,
+                                engine = state.content.engine,
+                            )
+                        }
                     }
                 }
             }

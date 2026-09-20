@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Навигаторы Readium — фрагменты, поэтому содержимое книги живёт в обычном
-    FragmentContainerView, а панели рисует Compose поверх него.
-    Когда панели скрыты, overlay уходит в GONE: иначе он перехватывал бы
-    касания, которыми листают страницы.
+    Содержимое книги показывает навигатор Readium — это фрагмент.
+
+    Панели здесь обычные View, а не Compose. Так сделано в демо самого
+    Readium, и так надёжнее: Compose-наложение поверх фрагмента
+    перерисовывалось не всегда, и человек оставался на экране «Открываем
+    книгу…» без единой кнопки.
+
+    Панели видны сразу после открытия книги и прячутся тапом по центру:
+    застрять в книге без выхода нельзя.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/reader_root"
@@ -15,9 +20,115 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <androidx.compose.ui.platform.ComposeView
-        android:id="@+id/reader_overlay"
+    <!-- Верхняя панель: выход, название, оглавление. -->
+    <LinearLayout
+        android:id="@+id/reader_top_bar"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="@color/panel_background"
+        android:fitsSystemWindows="true"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <Button
+            android:id="@+id/reader_back"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:text="@string/reader_back"
+            android:textAllCaps="false"
+            android:textColor="@color/panel_text" />
+
+        <TextView
+            android:id="@+id/reader_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:textColor="@color/panel_text_secondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/reader_toc"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:text="@string/reader_toc"
+            android:textAllCaps="false"
+            android:textColor="@color/panel_accent" />
+    </LinearLayout>
+
+    <!-- Нижняя панель: настройки и прогресс. -->
+    <LinearLayout
+        android:id="@+id/reader_bottom_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@color/panel_background"
+        android:fitsSystemWindows="true"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <Button
+            android:id="@+id/reader_settings"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:text="@string/reader_settings"
+            android:textAllCaps="false"
+            android:textColor="@color/panel_accent" />
+
+        <TextView
+            android:id="@+id/reader_progress"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:textColor="@color/panel_text_secondary"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- Загрузка и ошибки. Поверх всего, но только пока есть что сказать. -->
+    <LinearLayout
+        android:id="@+id/reader_status"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/window_background"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/reader_status_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textColor="@color/panel_text"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/reader_status_close"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/reader_back"
+            android:textAllCaps="false"
+            android:textColor="@color/panel_accent" />
+    </LinearLayout>
 
 </FrameLayout>

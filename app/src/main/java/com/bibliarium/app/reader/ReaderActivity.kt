@@ -1,34 +1,30 @@
 package com.bibliarium.app.reader
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.enableEdgeToEdge
+import android.widget.Button
+import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.bibliarium.app.R
 import com.bibliarium.app.appContainer
-import com.bibliarium.app.ui.theme.BibliariumTheme
-import com.bibliarium.app.ui.theme.ThemeVariant
 import com.github.barteksc.pdfviewer.PDFView
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
 import org.readium.adapter.pdfium.navigator.PdfiumNavigatorFactory
 import org.readium.adapter.pdfium.navigator.PdfiumNavigatorFragment
+import org.readium.r2.navigator.Navigator
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.VisualNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
@@ -40,9 +36,16 @@ import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 
 /**
- * Экран чтения. Содержимое книги показывает навигатор Readium — это фрагмент,
- * поэтому активность здесь обычная, на AppCompat, а не Compose-only.
- * Панели поверх рисует Compose.
+ * Экран чтения.
+ *
+ * Содержимое книги показывает навигатор Readium — это фрагмент. Панели
+ * сделаны обычными View по образцу демо-приложения Readium (BSD 3-Clause,
+ * копия лицензии в licenses/). Наложение на Compose поверх фрагмента
+ * перерисовывалось не всегда, и человек оставался на экране «Открываем
+ * книгу…» без единой кнопки.
+ *
+ * Панели показаны сразу после открытия и прячутся тапом по центру:
+ * застрять в книге без выхода нельзя.
  */
 @OptIn(ExperimentalReadiumApi::class)
 class ReaderActivity : AppCompatActivity() {
@@ -51,25 +54,41 @@ class ReaderActivity : AppCompatActivity() {
         ReaderViewModel.factory(appContainer)
     }
 
-    private var navigator: VisualNavigator? = null
-    private var chromeVisible by mutableStateOf(false)
+    private lateinit var topBar: View
+    private lateinit var bottomBar: View
+    private lateinit var status: View
+    private lateinit var statusText: TextView
+    private lateinit var titleView: TextView
+    private lateinit var progressView: TextView
+    private lateinit var tocButton: Button
 
-    // Что показывать поверх книги. Состояние держит активность, а не отдельная
-    // подписка внутри Compose: навигатор ставит именно она, и раздвоение
-    // источника уже приводило к тому, что «Открываем книгу…» висело поверх
-    // открытого текста.
-    private var chromeState by mutableStateOf<ReaderChromeState>(ReaderChromeState.Loading)
+    private var navigator: Navigator? = null
+    private var content: ReaderContent? = null
+    private var panelsVisible = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
-
-        // Намеренно не отдаём системе сохранённое состояние фрагментов.
-        // Навигатор нельзя создать без открытой публикации, а после смерти
-        // процесса её ещё нет — восстановление упало бы. Терять тут нечего:
-        // позиция чтения лежит в базе, и книга открывается ровно на ней.
+        // Намеренно не отдаём системе сохранённое состояние фрагментов:
+        // навигатор нельзя создать без открытой публикации, а после смерти
+        // процесса её ещё нет. Позиция чтения лежит в базе, и книга
+        // открывается ровно на ней.
         super.onCreate(null)
-
         setContentView(R.layout.activity_reader)
+
+        topBar = findViewById(R.id.reader_top_bar)
+        bottomBar = findViewById(R.id.reader_bottom_bar)
+        status = findViewById(R.id.reader_status)
+        statusText = findViewById(R.id.reader_status_text)
+        titleView = findViewById(R.id.reader_title)
+        progressView = findViewById(R.id.reader_progress)
+        tocButton = findViewById(R.id.reader_toc)
+
+        findViewById<Button>(R.id.reader_back).setOnClickListener { finish() }
+        findViewById<Button>(R.id.reader_status_close).setOnClickListener { finish() }
+        tocButton.setOnClickListener { showTableOfContents() }
+        findViewById<Button>(R.id.reader_settings).setOnClickListener { showSettings() }
+
+        showStatus(getString(R.string.reader_loading))
+        setPanelsVisible(false)
 
         val bookId = intent.getStringExtra(EXTRA_BOOK_ID)
         if (bookId == null) {
@@ -77,19 +96,9 @@ class ReaderActivity : AppCompatActivity() {
             return
         }
 
-        findViewById<ComposeView>(R.id.reader_overlay).setContent {
-            BibliariumTheme(variant = ThemeVariant.ARCHIVE) {
-                ReaderChrome(
-                    viewModel = viewModel,
-                    chromeState = chromeState,
-                    visible = chromeVisible,
-                    onClose = { finish() },
-                )
-            }
-        }
-
         viewModel.open(bookId)
         observeState()
+        observePosition()
     }
 
     private fun observeState() {
@@ -97,24 +106,25 @@ class ReaderActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collectLatest { state ->
                     when (state) {
-                        is ReaderState.Loading -> {
-                            chromeState = ReaderChromeState.Loading
-                        }
+                        is ReaderState.Loading ->
+                            showStatus(getString(R.string.reader_loading))
 
-                        is ReaderState.Failed -> {
-                            chromeState = ReaderChromeState.Failed(state.error)
-                            // Иначе экран выглядит пустым и мёртвым.
-                            chromeVisible = true
-                        }
+                        is ReaderState.Failed ->
+                            showStatus(describe(state.error))
 
                         is ReaderState.Ready -> {
                             if (navigator == null) {
                                 installNavigator(state.content)
                             }
-                            chromeState = ReaderChromeState.Content(
-                                title = state.content.book.title,
-                                engine = state.content.engine,
-                            )
+                            content = state.content
+                            titleView.text = state.content.book.title
+                            tocButton.visibility = if (state.content.tableOfContents.isEmpty()) {
+                                View.GONE
+                            } else {
+                                View.VISIBLE
+                            }
+                            hideStatus()
+                            setPanelsVisible(true)
                         }
                     }
                 }
@@ -122,13 +132,50 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
+    private fun observePosition() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.position.collectLatest { position ->
+                    progressView.text = progressLabel(position)
+                }
+            }
+        }
+    }
+
+    private fun progressLabel(position: ReadingPosition): String {
+        val percent = (position.progress * 100).toInt()
+        val minutes = position.minutesLeft
+            ?: return getString(R.string.reader_progress, percent)
+        return if (minutes < MINUTES_IN_HOUR) {
+            getString(R.string.reader_progress_minutes, percent, minutes)
+        } else {
+            getString(R.string.reader_progress_hours, percent, minutes / MINUTES_IN_HOUR)
+        }
+    }
+
+    private fun describe(error: ReaderOpenError): String {
+        val base = getString(
+            when (error) {
+                is ReaderOpenError.FileMissing -> R.string.reader_error_missing
+                is ReaderOpenError.Unreadable -> R.string.reader_error_unreadable
+                is ReaderOpenError.UnsupportedFormat -> R.string.reader_error_unsupported
+                is ReaderOpenError.NotPrepared -> R.string.reader_error_not_prepared
+            },
+        )
+        // Место обрыва показываем прямо на экране: «книга повреждена» без
+        // подробностей не даёт ничего ни человеку, ни разбору потом.
+        return error.detail?.let { "$base\n\n$it" } ?: base
+    }
+
+    // --- навигатор ---------------------------------------------------------
+
     private fun installNavigator(content: ReaderContent) {
         val fragment = when (content.engine) {
             ReaderEngine.EPUB -> installEpubNavigator(content)
             ReaderEngine.PDF -> installPdfNavigator(content)
         }
 
-        navigator = fragment as VisualNavigator
+        navigator = fragment as Navigator
         attachGestures(fragment)
         observeLocator(fragment as VisualNavigator)
         observePreferences(content, fragment)
@@ -139,49 +186,35 @@ class ReaderActivity : AppCompatActivity() {
         supportFragmentManager.fragmentFactory = factory.createFragmentFactory(
             initialLocator = content.initialLocator,
             initialPreferences = viewModel.epubPreferences.value,
-            configuration = EpubNavigatorFragment.Configuration {
-                declareReadingFonts()
-            },
+            configuration = EpubNavigatorFragment.Configuration { declareReadingFonts() },
         )
         supportFragmentManager.commitNow {
-            replace(
-                R.id.reader_container,
-                EpubNavigatorFragment::class.java,
-                Bundle(),
-                NAVIGATOR_TAG,
-            )
+            replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), TAG)
         }
-        return supportFragmentManager.findFragmentByTag(NAVIGATOR_TAG)!!
+        return supportFragmentManager.findFragmentByTag(TAG)!!
     }
 
     private fun installPdfNavigator(content: ReaderContent): Fragment {
-        val engineProvider = PdfiumEngineProvider()
-        val factory = PdfiumNavigatorFactory(content.publication, engineProvider)
+        val factory = PdfiumNavigatorFactory(content.publication, PdfiumEngineProvider())
         supportFragmentManager.fragmentFactory = factory.createFragmentFactory(
             initialLocator = content.initialLocator,
             initialPreferences = viewModel.pdfPreferences.value,
         )
         supportFragmentManager.commitNow {
-            replace(
-                R.id.reader_container,
-                PdfNavigatorFragment::class.java,
-                Bundle(),
-                NAVIGATOR_TAG,
-            )
+            replace(R.id.reader_container, PdfNavigatorFragment::class.java, Bundle(), TAG)
         }
-        val fragment = supportFragmentManager.findFragmentByTag(NAVIGATOR_TAG)!!
+        val fragment = supportFragmentManager.findFragmentByTag(TAG)!!
         keepPdfFitToWidth(fragment)
         observeNightMode(fragment)
         return fragment
     }
 
     /**
-     * Тап по левой трети — назад, по правой — вперёд, по центральной — панели.
+     * Левая треть — назад, правая — вперёд, центральная — панели.
      *
-     * Первые две трети отдаём DirectionalNavigationAdapter: он уже умеет
-     * листать с учётом направления письма. Порог в треть экрана задаётся
-     * здесь же, минимальный размер края обнуляется — иначе на узком экране
-     * края расползлись бы за пределы трети.
+     * Края отданы DirectionalNavigationAdapter: он уже умеет листать с учётом
+     * направления письма. Порог в треть задаётся здесь, минимальный размер
+     * края обнуляется — иначе на узком экране края вышли бы за треть.
      */
     private fun attachGestures(fragment: Fragment) {
         val overflowable = fragment as? OverflowableNavigator ?: return
@@ -198,8 +231,8 @@ class ReaderActivity : AppCompatActivity() {
         (fragment as VisualNavigator).addInputListener(
             object : InputListener {
                 override fun onTap(event: TapEvent): Boolean {
-                    // Сюда долетает только центральная треть: края забрал адаптер выше.
-                    chromeVisible = !chromeVisible
+                    // Сюда долетает только центральная треть: края забрал адаптер.
+                    setPanelsVisible(!panelsVisible)
                     return true
                 }
             },
@@ -209,14 +242,11 @@ class ReaderActivity : AppCompatActivity() {
     private fun observeLocator(navigator: VisualNavigator) {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                navigator.currentLocator.collectLatest { locator ->
-                    viewModel.onLocatorChanged(locator)
-                }
+                navigator.currentLocator.collectLatest { viewModel.onLocatorChanged(it) }
             }
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
     private fun observePreferences(content: ReaderContent, fragment: Fragment) {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -232,10 +262,50 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Ночной режим PDF делает сам PDFView: в настройках Readium такого поля нет,
-     * поэтому инверсию применяем к виджету напрямую.
-     */
+    // --- панели ------------------------------------------------------------
+
+    private fun setPanelsVisible(visible: Boolean) {
+        panelsVisible = visible
+        val mode = if (visible) View.VISIBLE else View.GONE
+        topBar.visibility = mode
+        bottomBar.visibility = mode
+    }
+
+    private fun showStatus(text: String) {
+        statusText.text = text
+        status.visibility = View.VISIBLE
+    }
+
+    private fun hideStatus() {
+        status.visibility = View.GONE
+    }
+
+    private fun showTableOfContents() {
+        val entries = content?.tableOfContents.orEmpty()
+        if (entries.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setMessage(R.string.reader_toc_empty)
+                .setPositiveButton(R.string.reader_close, null)
+                .show()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_toc)
+            .setItems(entries.map { it.title }.toTypedArray()) { _, index ->
+                navigator?.go(entries[index].locator, animated = false)
+                setPanelsVisible(false)
+            }
+            .show()
+    }
+
+    private fun showSettings() {
+        val current = content ?: return
+        ReaderSettingsDialog(this, viewModel, current.engine).show()
+    }
+
+    // --- PDF ---------------------------------------------------------------
+
     private fun observeNightMode(fragment: Fragment) {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -250,8 +320,8 @@ class ReaderActivity : AppCompatActivity() {
 
     /**
      * Щипок для масштаба разрешён, но после отпускания страница возвращается
-     * к вписанной. Иначе человек залипает в увеличенной странице: перелистывание
-     * в этом состоянии работает не так, и он теряет навигацию.
+     * к вписанной: в увеличенной странице перелистывание работает не так,
+     * и человек теряет навигацию.
      */
     private fun keepPdfFitToWidth(fragment: Fragment) {
         fragment.view?.post {
@@ -261,13 +331,10 @@ class ReaderActivity : AppCompatActivity() {
                     event.actionMasked == MotionEvent.ACTION_CANCEL
                 ) {
                     pdfView.postDelayed(
-                        {
-                            if (pdfView.zoom > 1.01f) pdfView.resetZoomWithAnimation()
-                        },
+                        { if (pdfView.zoom > 1.01f) pdfView.resetZoomWithAnimation() },
                         ZOOM_RESET_DELAY_MS,
                     )
                 }
-                // Возвращаем false: PDFView должен обработать жест сам.
                 false
             }
         }
@@ -284,9 +351,10 @@ class ReaderActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_BOOK_ID = "bookId"
-        private const val NAVIGATOR_TAG = "navigator"
+        private const val TAG = "navigator"
         private const val ONE_THIRD = 1.0 / 3
         private const val ZOOM_RESET_DELAY_MS = 150L
+        private const val MINUTES_IN_HOUR = 60
 
         fun intent(context: Context, bookId: String): Intent =
             Intent(context, ReaderActivity::class.java).putExtra(EXTRA_BOOK_ID, bookId)

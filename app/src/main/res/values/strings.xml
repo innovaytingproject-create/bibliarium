@@ -94,24 +94,27 @@
 
     <string name="reader_loading">Открываем книгу…</string>
     <string name="reader_close">Закрыть</string>
+    <string name="reader_back">Назад</string>
+    <string name="reader_toc">Оглавление</string>
+    <string name="reader_toc_empty">В этой книге нет оглавления.</string>
     <string name="reader_settings">Настройки</string>
     <string name="reader_progress">%1$d %%</string>
     <string name="reader_progress_minutes">%1$d %% · осталось %2$d мин</string>
     <string name="reader_progress_hours">%1$d %% · осталось %2$d ч</string>
 
-    <string name="reader_font">Шрифт</string>
     <string name="reader_font_literata">Literata</string>
     <string name="reader_font_lora">Lora</string>
     <string name="reader_font_system">Системный</string>
-    <string name="reader_font_size">Размер</string>
-    <string name="reader_margins">Поля</string>
-    <string name="reader_line_height">Межстрочный</string>
-    <string name="reader_theme">Тема</string>
+    <string name="reader_size_bigger">Шрифт крупнее</string>
+    <string name="reader_size_smaller">Шрифт мельче</string>
+    <string name="reader_margins_wider">Поля шире</string>
+    <string name="reader_margins_narrower">Поля уже</string>
+    <string name="reader_line_height_more">Межстрочный больше</string>
+    <string name="reader_line_height_less">Межстрочный меньше</string>
     <string name="reader_theme_light">Светлая</string>
     <string name="reader_theme_sepia">Сепия</string>
     <string name="reader_theme_dark">Тёмная</string>
     <string name="reader_theme_night">Ночная</string>
-    <string name="reader_fit">Вписать</string>
     <string name="reader_fit_width">По ширине</string>
     <string name="reader_fit_height">По высоте</string>
 

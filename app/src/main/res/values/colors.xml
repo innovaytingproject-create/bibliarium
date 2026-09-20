@@ -3,4 +3,12 @@
     <!-- Только для системного окна до старта Compose. Токены живут в ui/theme/Tokens.kt. -->
     <color name="window_background">#F2F0EA</color>
     <color name="ic_launcher_background">#202321</color>
+
+    <!-- Панели экрана чтения. Значения те же, что в токенах темы Archive:
+         View-разметка не умеет читать Compose-токены, поэтому дублируются
+         здесь, а не задаются в экранах наугад. -->
+    <color name="panel_background">#FAF9F5</color>
+    <color name="panel_text">#202321</color>
+    <color name="panel_text_secondary">#747872</color>
+    <color name="panel_accent">#B44D38</color>
 </resources>

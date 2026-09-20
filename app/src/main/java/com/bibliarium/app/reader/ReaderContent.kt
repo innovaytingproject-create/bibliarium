@@ -29,24 +29,43 @@ class ReaderContent(
     val initialLocator: Locator?,
     /** Сколько всего позиций в книге; для PDF это страницы. */
     val totalPositions: Int,
+    /** Оглавление: что показать в списке глав и куда по нему прыгать. */
+    val tableOfContents: List<TocEntry>,
 ) {
     fun close() {
         runCatching { publication.close() }
     }
 }
 
-sealed interface ReaderOpenError {
-    /** Файла нет на диске — книгу добавили, а файл потом удалили. */
-    data object FileMissing : ReaderOpenError
+/** Строка оглавления. */
+data class TocEntry(val title: String, val locator: Locator)
 
-    /** Файл есть, но движок его не разобрал. */
-    data object Unreadable : ReaderOpenError
+sealed interface ReaderOpenError {
+    /** Место обрыва словами — то, что стоит показать и записать в лог. */
+    val detail: String?
+
+    /** Файла нет на диске — книгу добавили, а файл потом удалили. */
+    data object FileMissing : ReaderOpenError {
+        override val detail: String? = null
+    }
+
+    /**
+     * Файл есть, но движок его не разобрал.
+     *
+     * Причину несём с собой: «книга повреждена» без подробностей не даёт
+     * ничего ни человеку, ни разбору потом.
+     */
+    data class Unreadable(override val detail: String?) : ReaderOpenError
 
     /** Формат известен модели, но читать его пока нечем. */
-    data object UnsupportedFormat : ReaderOpenError
+    data object UnsupportedFormat : ReaderOpenError {
+        override val detail: String? = null
+    }
 
     /** Книга в библиотеке есть, но к чтению не подготовлена. */
-    data object NotPrepared : ReaderOpenError
+    data object NotPrepared : ReaderOpenError {
+        override val detail: String? = null
+    }
 }
 
 @OptIn(ExperimentalReadiumApi::class)
@@ -76,17 +95,32 @@ class ReaderContentOpener(
             return Result.failure(ReaderOpenException(ReaderOpenError.FileMissing))
         }
 
-        val asset = assetRetriever.retrieve(file)
-            .getOrElse { return Result.failure(ReaderOpenException(ReaderOpenError.Unreadable)) }
+        val asset = assetRetriever.retrieve(file).getOrElse { error ->
+            return Result.failure(
+                ReaderOpenException(
+                    ReaderOpenError.Unreadable(
+                        "не удалось открыть файл (${file.name}): ${describe(error)}",
+                    ),
+                ),
+            )
+        }
 
         val publication = publicationOpener
             .open(asset, allowUserInteraction = false)
-            .getOrElse {
+            .getOrElse { error ->
                 asset.close()
-                return Result.failure(ReaderOpenException(ReaderOpenError.Unreadable))
+                return Result.failure(
+                    ReaderOpenException(
+                        ReaderOpenError.Unreadable(
+                            "движок не разобрал книгу (${asset.format.mediaType}): " +
+                                describe(error),
+                        ),
+                    ),
+                )
             }
 
         val positions = runCatching { publication.positions() }.getOrDefault(emptyList())
+        val toc = runCatching { buildToc(publication) }.getOrDefault(emptyList())
 
         return Result.success(
             ReaderContent(
@@ -95,13 +129,42 @@ class ReaderContentOpener(
                 engine = engine,
                 initialLocator = book.locator?.let(::parseLocator),
                 totalPositions = positions.size,
+                tableOfContents = toc,
             ),
         )
+    }
+
+    /**
+     * Оглавление берём из книги, а если его там нет — из порядка чтения.
+     * Пустой список глав на экране выглядит как поломка, а он бывает
+     * у совершенно нормальных книг.
+     */
+    private suspend fun buildToc(publication: Publication): List<TocEntry> {
+        val links = publication.tableOfContents.ifEmpty { publication.readingOrder }
+        return links.mapIndexedNotNull { index, link ->
+            val locator = publication.locatorFromLink(link) ?: return@mapIndexedNotNull null
+            val title = link.title?.trim()?.takeIf { it.isNotEmpty() }
+                ?: "Часть ${index + 1}"
+            TocEntry(title, locator)
+        }
+    }
+
+    /** Разворачивает цепочку причин Readium в одну строку. */
+    private fun describe(error: org.readium.r2.shared.util.Error): String {
+        val chain = generateSequence(error) { it.cause }
+            .take(MAX_CAUSE_DEPTH)
+            .map { it.message }
+            .toList()
+        return chain.joinToString(" <- ")
     }
 
     private fun parseLocator(json: String): Locator? = runCatching {
         Locator.fromJSON(JSONObject(json))
     }.getOrNull()
+
+    private companion object {
+        const val MAX_CAUSE_DEPTH = 5
+    }
 }
 
 class ReaderOpenException(val error: ReaderOpenError) : Exception(error.toString())

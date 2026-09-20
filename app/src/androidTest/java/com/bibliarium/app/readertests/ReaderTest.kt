@@ -55,7 +55,7 @@ class ReaderTest {
             val locator = awaitLocator(book.id)
             assertNotNull("EPUB не открылся: навигатор не сообщил позицию", locator)
             assertLoadingGone()
-            TestArtifacts.screenshot("reader-epub")
+            settledScreenshot("reader-epub")
         }
     }
 
@@ -66,7 +66,7 @@ class ReaderTest {
             val locator = awaitLocator(book.id)
             assertNotNull("PDF не открылся: навигатор не сообщил позицию", locator)
             assertLoadingGone()
-            TestArtifacts.screenshot("reader-pdf")
+            settledScreenshot("reader-pdf")
         }
     }
 
@@ -129,8 +129,19 @@ class ReaderTest {
                 compose.onAllNodesWithText(BROKEN_MESSAGE).fetchSemanticsNodes().isNotEmpty()
             }
             compose.onNodeWithText(BROKEN_MESSAGE).assertIsDisplayed()
-            TestArtifacts.screenshot("reader-broken")
+            settledScreenshot("reader-broken")
         }
+    }
+
+    /**
+     * Снимок берётся только после того, как экран устоялся: и Compose, и
+     * WebView рисуют не мгновенно, а застывший кадр в артефактах бесполезен.
+     */
+    private fun settledScreenshot(name: String) {
+        compose.waitForIdle()
+        device.waitForIdle()
+        Thread.sleep(SCREENSHOT_SETTLE_MS)
+        TestArtifacts.screenshot(name)
     }
 
     /** Надпись загрузки не должна оставаться поверх открытой книги. */
@@ -211,5 +222,6 @@ class ReaderTest {
         const val POSITION_TOLERANCE = 0.02f
         const val BROKEN_MESSAGE = "Не удалось открыть книгу — файл повреждён."
         const val LOADING_MESSAGE = "Открываем книгу…"
+        const val SCREENSHOT_SETTLE_MS = 2_000L
     }
 }

@@ -104,6 +104,11 @@ adb shell appops get "$PKG" MANAGE_EXTERNAL_STORAGE > "$OUT/appops-before-full-a
 run_pass "full-access" "com.bibliarium.app.fullaccess"
 STATUS_FULL_ACCESS=$?
 
+# --- Прогон 3: чтение. Разрешения на файлы тут ни при чём: книги приезжают
+# из androidTest/assets и импортируются штатным путём во внутреннюю память.
+run_pass "reader" "com.bibliarium.app.readertests"
+STATUS_READER=$?
+
 adb shell appops get "$PKG" MANAGE_EXTERNAL_STORAGE > "$OUT/appops-after.txt" 2>&1 || true
 
 sleep 2
@@ -111,7 +116,8 @@ kill "$LOGCAT_PID" 2>/dev/null || true
 
 echo "=== содержимое $OUT"
 find "$OUT" -type f | head -50
-echo "=== статусы: без доступа=$STATUS_NO_ACCESS, с полным доступом=$STATUS_FULL_ACCESS"
+echo "=== статусы: без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, чтение=$STATUS_READER"
 
 if [ "$STATUS_NO_ACCESS" -ne 0 ]; then exit "$STATUS_NO_ACCESS"; fi
-exit "$STATUS_FULL_ACCESS"
+if [ "$STATUS_FULL_ACCESS" -ne 0 ]; then exit "$STATUS_FULL_ACCESS"; fi
+exit "$STATUS_READER"

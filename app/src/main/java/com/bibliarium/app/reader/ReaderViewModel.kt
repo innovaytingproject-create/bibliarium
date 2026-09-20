@@ -86,7 +86,8 @@ class ReaderViewModel(
                 },
                 onFailure = { error ->
                     _state.value = ReaderState.Failed(
-                        (error as? ReaderOpenException)?.error ?: ReaderOpenError.Unreadable,
+                        (error as? ReaderOpenException)?.error
+                            ?: ReaderOpenError.Unreadable(error.message),
                     )
                 },
             )

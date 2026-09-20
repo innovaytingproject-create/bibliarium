@@ -37,8 +37,8 @@ class BookImporter(
     private val fb2Converter: Fb2ToEpubConverter = Fb2ToEpubConverter(),
 ) {
 
-    /** Итог подготовки файла к чтению. */
-    data class Prepared(
+    /** Итог подготовки файла к чтению вместе с метаданными. */
+    private data class Prepared(
         val metadata: SourceMetadata,
         val readerPath: String?,
         val failure: BookFailure?,
@@ -225,28 +225,30 @@ class BookImporter(
      * в библиотеку — с пометкой и причиной. Молча выбрасывать файл нельзя:
      * человек добавил его осознанно и должен видеть, что с ним стало.
      */
-    /** Повтор подготовки для книги, которая уже лежит в библиотеке. */
-    suspend fun prepareExisting(id: String, filePath: String, format: String): Prepared =
-        withContext(Dispatchers.IO) {
-            val source = File(filePath)
-            if (!source.exists()) {
-                return@withContext Prepared(
-                    metadata = SourceMetadata(null, null, null, null),
-                    readerPath = null,
-                    failure = BookFailure.FILE_MISSING,
-                    failureDetail = "Файл книги не найден в памяти телефона.",
-                )
-            }
-            if (format != BookFormat.FB2.name) {
-                return@withContext Prepared(
-                    metadata = SourceMetadata(null, null, null, null),
-                    readerPath = null,
-                    failure = null,
-                    failureDetail = null,
-                )
-            }
-            prepareFb2(id, source)
+    /**
+     * Повтор подготовки для книги, которая уже лежит в библиотеке.
+     * Наружу отдаётся только то, что нужно хранилищу: метаданные при повторе
+     * не трогаем, они уже записаны.
+     */
+    suspend fun prepareExisting(
+        id: String,
+        filePath: String,
+        format: String,
+    ): PreparationResult = withContext(Dispatchers.IO) {
+        val source = File(filePath)
+        if (!source.exists()) {
+            return@withContext PreparationResult(
+                readerPath = null,
+                failure = BookFailure.FILE_MISSING,
+                failureDetail = "Файл книги не найден в памяти телефона.",
+            )
         }
+        if (format != BookFormat.FB2.name) {
+            return@withContext PreparationResult(null, null, null)
+        }
+        val prepared = prepareFb2(id, source)
+        PreparationResult(prepared.readerPath, prepared.failure, prepared.failureDetail)
+    }
 
     private fun prepareFb2(id: String, source: File): Prepared {
         val converted = File(booksDir, "$id.epub")
@@ -381,3 +383,10 @@ class BookImporter(
         const val THUMBNAIL_QUALITY = 85
     }
 }
+
+/** Что удалось подготовить к чтению и что помешало. */
+data class PreparationResult(
+    val readerPath: String?,
+    val failure: BookFailure?,
+    val failureDetail: String?,
+)

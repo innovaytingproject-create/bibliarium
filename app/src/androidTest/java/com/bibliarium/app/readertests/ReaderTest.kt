@@ -135,13 +135,30 @@ class ReaderTest {
         tapCenter()
         device.wait(Until.gone(By.text("Назад")), PANEL_TIMEOUT)
 
+        assertNotNull(
+            "Первая страница не показала начало главы",
+            device.findObject(By.textContains("МЕТКА-НАЧАЛО")),
+        )
+
+        // Листание видно по тексту на экране: начало главы должно уйти.
         val turned = (1..MAX_TAPS).any {
             tapRightThird()
-            progressOf(book.id) > 0f
+            device.findObject(By.textContains("МЕТКА-НАЧАЛО")) == null
         }
 
         settledScreenshot("reader-after-page-turn")
-        assertTrue("Тап по правой трети не пролистал книгу", turned)
+        assertTrue(
+            "Тап по правой трети не сменил текст на экране " +
+                "(прогресс в базе: ${progressOf(book.id)})",
+            turned,
+        )
+
+        // И обратно: левая треть возвращает на начало главы.
+        val returned = (1..MAX_TAPS).any {
+            tapLeftThird()
+            device.findObject(By.textContains("МЕТКА-НАЧАЛО")) != null
+        }
+        assertTrue("Тап по левой трети не вернул на предыдущую страницу", returned)
     }
 
     @Test
@@ -225,6 +242,12 @@ class ReaderTest {
 
     private fun tapCenter() {
         device.click(device.displayWidth / 2, device.displayHeight / 2)
+        device.waitForIdle()
+        Thread.sleep(TAP_SETTLE_MS)
+    }
+
+    private fun tapLeftThird() {
+        device.click(device.displayWidth / 6, device.displayHeight / 2)
         device.waitForIdle()
         Thread.sleep(TAP_SETTLE_MS)
     }

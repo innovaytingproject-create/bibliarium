@@ -73,7 +73,7 @@ class ShelfTest {
     @Test
     fun modeSwitchShowsCoversAndBack() {
         val book = importRealBook()
-        seedFakeBooks(count = 5, fromFile = book.filePath)
+        seedFakeBooks(count = 5, fromFile = book.filePath, addedBefore = book.addedAt)
         openShelf()
         device.wait(Until.findObject(By.desc(book.title)), UI_TIMEOUT)
 
@@ -94,12 +94,13 @@ class ShelfTest {
     @Test
     fun tierScrollsSideways() {
         val book = importRealBook()
-        seedFakeBooks(count = 40, fromFile = book.filePath)
+        seedFakeBooks(count = 40, fromFile = book.filePath, addedBefore = book.addedAt)
         openShelf()
-        device.wait(Until.findObject(By.desc(fakeTitle(0))), UI_TIMEOUT)
-
-        val firstVisible = device.findObject(By.desc(fakeTitle(0)))
-        assertNotNull("Первый корешок яруса не виден", firstVisible)
+        device.wait(Until.findObject(By.desc(book.title)), UI_TIMEOUT)
+        assertNotNull(
+            "Первый корешок яруса не виден",
+            device.findObject(By.desc(book.title)),
+        )
 
         // Ярус листается вбок: после свайпа влево на экране другие корешки.
         var moved = false
@@ -113,7 +114,7 @@ class ShelfTest {
                     SWIPE_STEPS,
                 )
                 device.waitForIdle()
-                moved = device.findObject(By.desc(fakeTitle(0))) == null
+                moved = device.findObject(By.desc(book.title)) == null
             }
         }
 
@@ -124,7 +125,7 @@ class ShelfTest {
     @Test
     fun darkThemeShelfLooksRight() {
         val book = importRealBook()
-        seedFakeBooks(count = 10, fromFile = book.filePath)
+        seedFakeBooks(count = 10, fromFile = book.filePath, addedBefore = book.addedAt)
 
         Shell.run("cmd uimode night yes")
         openShelf()
@@ -146,38 +147,55 @@ class ShelfTest {
     @Test
     fun fiveHundredBooksScrollWithoutJank() {
         val book = importRealBook()
-        seedFakeBooks(count = 500, fromFile = book.filePath)
+        seedFakeBooks(count = 500, fromFile = book.filePath, addedBefore = book.addedAt)
         openShelf()
-        device.wait(Until.findObject(By.desc(fakeTitle(0))), OPEN_TIMEOUT)
+        device.wait(Until.findObject(By.desc(book.title)), OPEN_TIMEOUT)
 
+        // По статусу все пятьсот книг попадают в один ярус, а ярус показывает
+        // двадцать корешков — прокручивать было бы нечего. По автору ярусов
+        // становится двадцать пять, и вот это уже настоящая полка.
+        device.findObject(By.text("По автору")).click()
+        device.waitForIdle()
+        settledScreenshot("shelf-500-books")
+
+        measureScroll("корешки")
+
+        device.findObject(By.text("Сетка")).click()
+        device.waitForIdle()
+        settledScreenshot("shelf-500-grid")
+
+        measureScroll("сетка")
+    }
+
+    /** Прокручивает то, что сейчас на экране, и считает пропущенные кадры. */
+    private fun measureScroll(what: String) {
         Shell.run("dumpsys gfxinfo ${Shell.PACKAGE} reset")
 
         repeat(SCROLL_PASSES) {
             device.swipe(
                 device.displayWidth / 2,
-                device.displayHeight * 4 / 5,
+                device.displayHeight * 3 / 4,
                 device.displayWidth / 2,
-                device.displayHeight / 5,
+                device.displayHeight / 4,
                 SWIPE_STEPS,
             )
             device.waitForIdle()
         }
 
         val report = Shell.run("dumpsys gfxinfo ${Shell.PACKAGE}")
-        TestArtifacts.note("shelf-gfxinfo", report.take(GFX_REPORT_LIMIT))
-        settledScreenshot("shelf-500-books")
+        TestArtifacts.note("shelf-gfxinfo-$what", report.take(GFX_REPORT_LIMIT))
 
-        val total = report.number("Total frames rendered: (\\d+)")
-        val janky = report.number("Janky frames: (\\d+)")
-        assertTrue("Кадры не считались: $report", total > MIN_FRAMES)
+        val total = report.number("Total frames rendered: (\d+)")
+        val janky = report.number("Janky frames: (\d+)")
+        assertTrue(
+            "Кадры при прокрутке ($what) не рисовались вовсе — двигать было нечего?",
+            total > MIN_FRAMES,
+        )
 
         val percent = janky * PERCENT / total
-        TestArtifacts.note(
-            "shelf-jank",
-            "кадров $total, пропущено $janky, это $percent %",
-        )
+        TestArtifacts.note("shelf-jank-$what", "кадров $total, пропущено $janky, это $percent %")
         assertTrue(
-            "На пятистах книгах прокрутка рваная: пропущено $janky кадров из $total ($percent %)",
+            "Прокрутка ($what) рваная: пропущено $janky кадров из $total ($percent %)",
             percent <= MAX_JANK_PERCENT,
         )
     }
@@ -207,8 +225,11 @@ class ShelfTest {
      * Так пятьсот корешков появляются мгновенно, а любой из них открывается
      * по-настоящему.
      */
-    private fun seedFakeBooks(count: Int, fromFile: String) {
-        val now = System.currentTimeMillis()
+    private fun seedFakeBooks(count: Int, fromFile: String, addedBefore: Long) {
+        // Фиктивные книги встают позади настоящей: полка сортирует по времени
+        // добавления, и иначе корешок настоящей книги уезжал бы за край экрана,
+        // а проверка искала бы то, чего не видно.
+        val now = addedBefore - 1_000
         val entities = (0 until count).map { index ->
             val id = "fake-$index"
             fakeIds += id
@@ -264,7 +285,7 @@ class ShelfTest {
         const val SWIPE_STEPS = 12
         const val MAX_SWIPES = 5
         const val SCROLL_PASSES = 6
-        const val AUTHORS = 12
+        const val AUTHORS = 25
         const val PERCENT = 100
         const val MIN_FRAMES = 20
         const val GFX_REPORT_LIMIT = 4_000

@@ -136,7 +136,7 @@ class FullAccessTest {
 
     private fun openScanScreen() {
         ActivityScenario.launch(MainActivity::class.java)
-        compose.onNodeWithText("Добавить книгу").performClick()
+        compose.onNodeWithText("Добавить").performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Найти книги на телефоне").performClick()
     }

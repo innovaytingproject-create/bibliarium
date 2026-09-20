@@ -73,7 +73,7 @@ class NoAccessTest {
     @Test
     fun scanScreenSaysThereIsNowhereToSearch() {
         ActivityScenario.launch(MainActivity::class.java).use {
-            compose.onNodeWithText("Добавить книгу").performClick()
+            compose.onNodeWithText("Добавить").performClick()
             compose.waitForIdle()
             compose.onNodeWithText("Найти книги на телефоне").performClick()
             compose.waitForIdle()
@@ -92,7 +92,7 @@ class NoAccessTest {
                 .respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
 
             ActivityScenario.launch(MainActivity::class.java).use {
-                compose.onNodeWithText("Добавить книгу").performClick()
+                compose.onNodeWithText("Добавить").performClick()
                 compose.waitForIdle()
                 compose.onNodeWithText("Доступ к файлам").performClick()
                 compose.waitForIdle()
@@ -126,7 +126,7 @@ class NoAccessTest {
                 .respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
 
             ActivityScenario.launch(MainActivity::class.java).use {
-                compose.onNodeWithText("Добавить книгу").performClick()
+                compose.onNodeWithText("Добавить").performClick()
                 compose.waitForIdle()
                 compose.onNodeWithText("Доступ к файлам").performClick()
                 compose.waitForIdle()

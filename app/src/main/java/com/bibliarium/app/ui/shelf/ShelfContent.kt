@@ -3,6 +3,8 @@ package com.bibliarium.app.ui.shelf
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
@@ -224,10 +226,28 @@ private fun ShelfHeader(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.md)) {
-            GroupingTab(R.string.shelf_group_status, ShelfGrouping.STATUS, grouping, onGroupingChange)
-            GroupingTab(R.string.shelf_group_author, ShelfGrouping.AUTHOR, grouping, onGroupingChange)
-            GroupingTab(R.string.shelf_group_genre, ShelfGrouping.GENRE, grouping, onGroupingChange)
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            GroupingTab(
+                R.string.shelf_group_status,
+                ShelfGrouping.STATUS,
+                grouping,
+                onGroupingChange,
+            )
+            GroupingTab(
+                R.string.shelf_group_author,
+                ShelfGrouping.AUTHOR,
+                grouping,
+                onGroupingChange,
+            )
+            GroupingTab(
+                R.string.shelf_group_genre,
+                ShelfGrouping.GENRE,
+                grouping,
+                onGroupingChange,
+            )
         }
 
         HorizontalDivider(thickness = 1.dp, color = colors.line)
@@ -244,11 +264,16 @@ private fun GroupingTab(
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
 
-    TextButton(onClick = { onChange(value) }) {
+    TextButton(
+        onClick = { onChange(value) },
+        contentPadding = PaddingValues(horizontal = BibliariumTheme.spacing.sm),
+    ) {
         Text(
             text = stringResource(labelRes),
             style = type.labelMd,
             color = if (value == current) colors.text else colors.textSecondary,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }
@@ -259,18 +284,26 @@ private fun FilterRow(filter: ShelfFilter, onFilterChange: (ShelfFilter) -> Unit
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
 
+    // Строка прокручивается вбок: «Избранное» иначе переносится по слогам
+    // и выглядит как поломка вёрстки.
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = spacing.margin, vertical = spacing.xs),
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {
         ShelfFilter.entries.forEach { value ->
-            TextButton(onClick = { onFilterChange(value) }) {
+            TextButton(
+                onClick = { onFilterChange(value) },
+                contentPadding = PaddingValues(horizontal = spacing.sm),
+            ) {
                 Text(
                     text = stringResource(value.labelRes()),
                     style = type.labelMd,
                     color = if (value == filter) colors.accent else colors.textSecondary,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }

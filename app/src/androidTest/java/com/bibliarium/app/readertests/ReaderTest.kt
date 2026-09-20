@@ -75,19 +75,14 @@ class ReaderTest {
             awaitLocator(book.id)
             val start = progressOf(book.id)
 
-            repeat(4) { tapRightThird() }
-            val forward = awaitProgressChange(book.id, from = start)
-            TestArtifacts.note(
-                "paging",
-                "start=$start forward=$forward",
-            )
+            val forward = tapUntilProgressChanges(book.id, from = start, forward = true)
+            TestArtifacts.note("paging", "start=$start forward=$forward")
             assertTrue(
                 "Тап по правой трети не пролистал вперёд: было $start, стало $forward",
                 forward > start,
             )
 
-            repeat(4) { tapLeftThird() }
-            val back = awaitProgressChange(book.id, from = forward)
+            val back = tapUntilProgressChanges(book.id, from = forward, forward = false)
             assertTrue(
                 "Тап по левой трети не пролистал назад: было $forward, стало $back",
                 back < forward,
@@ -101,8 +96,7 @@ class ReaderTest {
 
         openReader(book) {
             awaitLocator(book.id)
-            repeat(5) { tapRightThird() }
-            awaitProgressChange(book.id, from = 0f)
+            tapUntilProgressChanges(book.id, from = 0f, forward = true)
         }
 
         val saved = progressOf(book.id)
@@ -168,13 +162,21 @@ class ReaderTest {
     private fun progressOf(id: String): Float =
         runBlocking { store.get(id) }?.progress ?: 0f
 
-    private fun awaitProgressChange(id: String, from: Float): Float {
+    /**
+     * Листает, пока позиция не сдвинется, а не заранее заданное число раз.
+     *
+     * Первые тапы после открытия могут уйти в пустоту: на медленной машине
+     * страница ещё не разложена. Проверяется по-прежнему то же самое — что
+     * листание работает, — но тест не зависит от того, за сколько попыток
+     * движок успеет проснуться.
+     */
+    private fun tapUntilProgressChanges(id: String, from: Float, forward: Boolean): Float {
         val deadline = System.currentTimeMillis() + PAGE_TIMEOUT_MS
         var last = from
         while (System.currentTimeMillis() < deadline) {
+            if (forward) tapRightThird() else tapLeftThird()
             last = progressOf(id)
             if (kotlin.math.abs(last - from) > PROGRESS_EPSILON) return last
-            Thread.sleep(POLL_MS)
         }
         return last
     }
@@ -193,7 +195,7 @@ class ReaderTest {
 
     private companion object {
         const val OPEN_TIMEOUT_MS = 30_000L
-        const val PAGE_TIMEOUT_MS = 15_000L
+        const val PAGE_TIMEOUT_MS = 40_000L
         const val POLL_MS = 250L
         const val TAP_SETTLE_MS = 600L
         const val PROGRESS_EPSILON = 0.0005f

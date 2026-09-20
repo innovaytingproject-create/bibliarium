@@ -104,7 +104,12 @@ adb shell appops get "$PKG" MANAGE_EXTERNAL_STORAGE > "$OUT/appops-before-full-a
 run_pass "full-access" "com.bibliarium.app.fullaccess"
 STATUS_FULL_ACCESS=$?
 
-# --- Прогон 3: чтение. Разрешения на файлы тут ни при чём: книги приезжают
+# --- Прогон 3: конвертер FB2. Никакого UI и никаких разрешений — чистая
+# проверка разбора и сборки книги.
+run_pass "fb2" "com.bibliarium.app.fb2tests"
+STATUS_FB2=$?
+
+# --- Прогон 4: чтение. Разрешения на файлы тут ни при чём: книги приезжают
 # из androidTest/assets и импортируются штатным путём во внутреннюю память.
 run_pass "reader" "com.bibliarium.app.readertests"
 STATUS_READER=$?
@@ -116,8 +121,9 @@ kill "$LOGCAT_PID" 2>/dev/null || true
 
 echo "=== содержимое $OUT"
 find "$OUT" -type f | head -50
-echo "=== статусы: без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, чтение=$STATUS_READER"
+echo "=== статусы: без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, fb2=$STATUS_FB2, чтение=$STATUS_READER"
 
 if [ "$STATUS_NO_ACCESS" -ne 0 ]; then exit "$STATUS_NO_ACCESS"; fi
 if [ "$STATUS_FULL_ACCESS" -ne 0 ]; then exit "$STATUS_FULL_ACCESS"; fi
+if [ "$STATUS_FB2" -ne 0 ]; then exit "$STATUS_FB2"; fi
 exit "$STATUS_READER"

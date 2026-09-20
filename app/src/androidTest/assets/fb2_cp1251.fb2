@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <genre>sf</genre>
+      <author>
+        <first-name>Сергей</first-name>
+        <last-name>Первый</last-name>
+      </author>
+      <author>
+        <first-name>Мария</first-name>
+        <middle-name>Ивановна</middle-name>
+        <last-name>Вторая</last-name>
+      </author>
+      <book-title>Книга в кодировке 1251</book-title>
+      <lang>ru</lang>
+      <translator><first-name>Джон</first-name><last-name>Переводчиков</last-name></translator>
+    </title-info>
+    <document-info><date value="2020-01-01">2020</date></document-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Глава на кириллице</p></title>
+      <p>Проверка кодировки: ёжик, съезд, «ёлки-палки», тире — вот так.</p>
+    </section>
+  </body>
+</FictionBook>

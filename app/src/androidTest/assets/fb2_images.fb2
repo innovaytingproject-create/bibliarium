@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <genre>sf</genre>
+      <author>
+        <first-name>Анна</first-name>
+        <last-name>Художникова</last-name>
+      </author>
+      <book-title>Книга с картинками</book-title>
+      <coverpage><image l:href="#cover.png"/></coverpage>
+      <lang>ru</lang>
+    </title-info>
+    <document-info><date value="2020-01-01">2020</date></document-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Глава с иллюстрацией</p></title>
+      <p>Перед картинкой.</p>
+      <image l:href="#pic1.png"/>
+      <p>После картинки.</p>
+    </section>
+  </body>
+  <binary id="cover.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAADwAAABaCAIAAABrM6JiAAAAXklEQVR42u3OAQkAAAgDsMeyhG0NaAtBGCzAMl3vRFpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlr6Or1o4cvQA3wJ5wAAAABJRU5ErkJggg==</binary>
+  <binary id="pic1.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAIAAAADnC86AAAAMUlEQVR42u3NQQkAAAgEsItmAAPYP4klBD+D/ZeafhGxWCwWi8VisVgsFovFYrH4Ll6RV5FMZ+9N3wAAAABJRU5ErkJggg==</binary>
+</FictionBook>

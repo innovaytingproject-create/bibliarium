@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <genre>sf</genre>
+      <author>
+        <first-name>Пётр</first-name>
+        <last-name>Сносочный</last-name>
+      </author>
+      <book-title>Книга со сносками</book-title>
+      <lang>ru</lang>
+    </title-info>
+    <document-info><date value="2020-01-01">2020</date></document-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Глава со сносками</p></title>
+      <p>Первое утверждение<a l:href="#n1" type="note">[1]</a> в тексте.</p>
+      <p>Второе утверждение<a l:href="#n2" type="note">[2]</a> в тексте.</p>
+    </section>
+  </body>
+  <body name="notes">
+    <section id="n1">
+      <title><p>1</p></title>
+      <p>Пояснение к первому утверждению.</p>
+    </section>
+    <section id="n2">
+      <title><p>2</p></title>
+      <p>Пояснение ко второму утверждению.</p>
+    </section>
+  </body>
+</FictionBook>

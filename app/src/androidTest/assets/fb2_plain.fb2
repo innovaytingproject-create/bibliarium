@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+  <description>
+    <title-info>
+      <genre>sf</genre>
+      <genre>prose</genre>
+      <author>
+        <first-name>Иван</first-name>
+        <middle-name>Петрович</middle-name>
+        <last-name>Тестов</last-name>
+      </author>
+      <book-title>Обычная книга</book-title>
+      <annotation><p>Книга для проверки разбора.</p></annotation>
+      <lang>ru</lang>
+      <sequence name="Испытательная серия" number="3"/>
+    </title-info>
+    <document-info><date value="2020-01-01">2020</date></document-info>
+  </description>
+  <body>
+    <section>
+      <title><p>Глава первая</p></title>
+      <p>Обычный абзац с <emphasis>курсивом</emphasis> и <strong>полужирным</strong>.</p>
+      <subtitle>Подзаголовок внутри главы</subtitle>
+      <epigraph><p>Эпиграф к главе.</p></epigraph>
+      <cite><p>Цитата из другого источника.</p></cite>
+      <poem><stanza><v>Строка стиха первая</v><v>Строка стиха вторая</v></stanza></poem>
+      <section>
+        <title><p>Вложенный раздел</p></title>
+        <p>Текст вложенного раздела.</p>
+      </section>
+    </section>
+    <section>
+      <title><p>Глава вторая</p></title>
+      <p>Текст второй главы.</p>
+    </section>
+    <section>
+      <title><p>Глава третья</p></title>
+      <p>Текст третьей главы.</p>
+    </section>
+  </body>
+</FictionBook>

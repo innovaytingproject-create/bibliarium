@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 sealed interface LibraryMessage {
     data class Imported(val title: String) : LibraryMessage
     data class ImportFailed(val failure: ImportFailure) : LibraryMessage
+    data class Prepared(val title: String) : LibraryMessage
+    data class PreparationFailed(val title: String) : LibraryMessage
 }
 
 class LibraryViewModel(
@@ -49,6 +51,24 @@ class LibraryViewModel(
                     LibraryMessage.ImportFailed(failure)
                 },
             )
+        }
+    }
+
+    private val _retrying = MutableStateFlow<String?>(null)
+    val retrying: StateFlow<String?> = _retrying.asStateFlow()
+
+    /** Повтор подготовки книги, которую в прошлый раз не удалось открыть. */
+    fun retryPreparation(id: String) {
+        viewModelScope.launch {
+            _retrying.value = id
+            val title = bookStore.get(id)?.title.orEmpty()
+            val result = bookStore.retryPreparation(id)
+            _retrying.value = null
+            _message.value = if (result.isSuccess) {
+                LibraryMessage.Prepared(title)
+            } else {
+                LibraryMessage.PreparationFailed(title)
+            }
         }
     }
 

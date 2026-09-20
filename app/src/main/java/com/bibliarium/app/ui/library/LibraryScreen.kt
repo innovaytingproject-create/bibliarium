@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
@@ -28,7 +29,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +45,7 @@ import coil3.compose.AsyncImage
 import com.bibliarium.app.R
 import com.bibliarium.app.data.importer.ImportFailure
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookFailure
 import com.bibliarium.app.ui.theme.BibliariumTheme
 
 /**
@@ -65,6 +69,18 @@ fun LibraryScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var explaining by remember { mutableStateOf<Book?>(null) }
+
+    explaining?.let { book ->
+        FailureDialog(
+            book = book,
+            onRetry = {
+                viewModel.retryPreparation(book.id)
+                explaining = null
+            },
+            onDismiss = { explaining = null },
+        )
+    }
 
     LaunchedEffect(message) {
         val current = message ?: return@LaunchedEffect
@@ -73,6 +89,10 @@ fun LibraryScreen(
                 context.getString(R.string.import_ok, current.title)
             is LibraryMessage.ImportFailed ->
                 context.getString(current.failure.messageRes())
+            is LibraryMessage.Prepared ->
+                context.getString(R.string.library_prepared, current.title)
+            is LibraryMessage.PreparationFailed ->
+                context.getString(R.string.library_prepare_failed, current.title)
         }
         snackbarHostState.showSnackbar(text)
         viewModel.consumeMessage()
@@ -153,7 +173,9 @@ fun LibraryScreen(
                     items(items = books, key = { it.id }) { book ->
                         BookRow(
                             book = book,
-                            onOpen = { onOpenBook(book.id) },
+                            onOpen = {
+                                if (book.isReadable) onOpenBook(book.id) else explaining = book
+                            },
                             onDelete = { viewModel.delete(book.id) },
                         )
                         HorizontalDivider(thickness = 1.dp, color = colors.line)
@@ -225,9 +247,13 @@ private fun BookRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = book.format.name,
+                text = if (book.isReadable) {
+                    book.format.name
+                } else {
+                    stringResource(R.string.library_not_readable, book.format.name)
+                },
                 style = type.labelSm,
-                color = colors.textSecondary,
+                color = if (book.isReadable) colors.textSecondary else colors.accent,
             )
         }
 
@@ -279,4 +305,60 @@ private fun ImportFailure.messageRes(): Int = when (this) {
     ImportFailure.UNREADABLE_FILE -> R.string.import_error_unreadable
     ImportFailure.PARSE_FAILED -> R.string.import_error_parse
     ImportFailure.STORAGE_FAILED -> R.string.import_error_storage
+}
+
+/**
+ * Книга есть, а открыть её нельзя. Показываем, что именно не получилось,
+ * и даём повторить: причина могла быть временной — не хватило места,
+ * файл был занят.
+ */
+@Composable
+private fun FailureDialog(
+    book: Book,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = BibliariumTheme.colors
+    val type = BibliariumTheme.type
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface,
+        title = {
+            Text(text = book.title, style = type.headlineSm, color = colors.text)
+        },
+        text = {
+            Text(
+                text = book.openFailureDetail
+                    ?: stringResource(book.openFailure.messageRes()),
+                style = type.bodyMd,
+                color = colors.textSecondary,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onRetry) {
+                Text(
+                    text = stringResource(R.string.library_retry),
+                    style = type.labelLg,
+                    color = colors.accent,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(R.string.library_close),
+                    style = type.labelLg,
+                    color = colors.textSecondary,
+                )
+            }
+        },
+    )
+}
+
+private fun BookFailure?.messageRes(): Int = when (this) {
+    BookFailure.CONVERSION_FAILED -> R.string.library_failure_conversion
+    BookFailure.UNREADABLE -> R.string.library_failure_unreadable
+    BookFailure.FILE_MISSING -> R.string.library_failure_missing
+    null -> R.string.library_failure_unreadable
 }

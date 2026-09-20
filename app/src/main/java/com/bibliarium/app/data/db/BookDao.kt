@@ -71,6 +71,20 @@ interface BookDao {
         lastOpenedAt: Long,
     )
 
+    @Query(
+        """
+        UPDATE books
+        SET readerPath = :readerPath, openFailure = :failure, openFailureDetail = :detail
+        WHERE id = :id
+        """,
+    )
+    suspend fun updateOpenState(
+        id: String,
+        readerPath: String?,
+        failure: String?,
+        detail: String?,
+    )
+
     @Query("UPDATE books SET isFavorite = :favorite WHERE id = :id")
     suspend fun updateFavorite(id: String, favorite: Boolean)
 }

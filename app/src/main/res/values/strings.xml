@@ -81,6 +81,17 @@
     <string name="settings_pick_cancelled">Папка не добавлена. Учтите: Android не даёт выбрать корень памяти и папку Download — возьмите вложенную папку или включите полный доступ.</string>
     <string name="settings_restrictions">С Android 11 система запрещает выбирать через выбор папки корень внутренней памяти, корни SD-карт и папку Download. Папки Android/data и Android/obb закрыты в обоих режимах — это ограничение системы. Папка Android/media доступна, книги из Telegram лежат там.</string>
 
+    <string name="library_not_readable">%1$s · не открывается</string>
+    <string name="library_retry">Попробовать снова</string>
+    <string name="library_close">Закрыть</string>
+    <string name="library_prepared">Готово: %1$s</string>
+    <string name="library_prepare_failed">Снова не вышло: %1$s</string>
+    <string name="library_failure_conversion">Не удалось подготовить книгу к чтению.</string>
+    <string name="library_failure_unreadable">Файл не удалось разобрать.</string>
+    <string name="library_failure_missing">Файл книги не найден в памяти телефона.</string>
+
+    <string name="reader_error_not_prepared">Книга не подготовлена к чтению. Откройте её в библиотеке и нажмите «Попробовать снова».</string>
+
     <string name="reader_loading">Открываем книгу…</string>
     <string name="reader_close">Закрыть</string>
     <string name="reader_settings">Настройки</string>

@@ -6,7 +6,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.bibliarium.app.data.importer.fb2.Fb2ConversionException
+import com.bibliarium.app.data.importer.fb2.Fb2ConversionFailure
+import com.bibliarium.app.data.importer.fb2.Fb2ToEpubConverter
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookFailure
 import com.bibliarium.app.domain.BookFormat
 import com.bibliarium.app.domain.ReadingStatus
 import java.io.File
@@ -30,7 +34,16 @@ class BookImporter(
     private val publicationOpener: PublicationOpener,
     private val booksDir: File,
     private val coversDir: File,
+    private val fb2Converter: Fb2ToEpubConverter = Fb2ToEpubConverter(),
 ) {
+
+    /** Итог подготовки файла к чтению. */
+    data class Prepared(
+        val metadata: SourceMetadata,
+        val readerPath: String?,
+        val failure: BookFailure?,
+        val failureDetail: String?,
+    )
 
     private data class SourceMetadata(
         val title: String?,
@@ -75,14 +88,21 @@ class BookImporter(
                 copyToStorage(uri, target)
             }
 
-            val metadata = when (kind.format) {
+            val prepared = when (kind.format) {
                 // И EPUB, и PDF открывает Readium — своих парсеров нет.
-                BookFormat.EPUB, BookFormat.PDF -> readWithReadium(target)
-                    ?: throw ImportException(ImportFailure.PARSE_FAILED)
-                BookFormat.FB2 -> readFb2(target)
+                BookFormat.EPUB, BookFormat.PDF -> Prepared(
+                    metadata = readWithReadium(target)
+                        ?: throw ImportException(ImportFailure.PARSE_FAILED),
+                    readerPath = null,
+                    failure = null,
+                    failureDetail = null,
+                )
+
+                BookFormat.FB2 -> prepareFb2(id, target)
                 else -> throw ImportException(ImportFailure.UNSUPPORTED_FORMAT)
             }
 
+            val metadata = prepared.metadata
             val coverPath = metadata.cover?.let { saveThumbnail(id, it) }
 
             val book = Book(
@@ -103,6 +123,9 @@ class BookImporter(
                 isFavorite = false,
                 fileSize = fingerprint?.sizeBytes ?: document.sizeBytes,
                 headHash = fingerprint?.headHash,
+                readerPath = prepared.readerPath,
+                openFailure = prepared.failure,
+                openFailureDetail = prepared.failureDetail,
             )
             Result.success(book)
         } catch (e: ImportException) {
@@ -194,6 +217,84 @@ class BookImporter(
         } finally {
             publication.close()
         }
+    }
+
+    /**
+     * FB2 превращается в EPUB прямо при добавлении, чтобы дальше книгу читал
+     * один движок. Если конвертация не удалась, книга всё равно попадает
+     * в библиотеку — с пометкой и причиной. Молча выбрасывать файл нельзя:
+     * человек добавил его осознанно и должен видеть, что с ним стало.
+     */
+    /** Повтор подготовки для книги, которая уже лежит в библиотеке. */
+    suspend fun prepareExisting(id: String, filePath: String, format: String): Prepared =
+        withContext(Dispatchers.IO) {
+            val source = File(filePath)
+            if (!source.exists()) {
+                return@withContext Prepared(
+                    metadata = SourceMetadata(null, null, null, null),
+                    readerPath = null,
+                    failure = BookFailure.FILE_MISSING,
+                    failureDetail = "Файл книги не найден в памяти телефона.",
+                )
+            }
+            if (format != BookFormat.FB2.name) {
+                return@withContext Prepared(
+                    metadata = SourceMetadata(null, null, null, null),
+                    readerPath = null,
+                    failure = null,
+                    failureDetail = null,
+                )
+            }
+            prepareFb2(id, source)
+        }
+
+    private fun prepareFb2(id: String, source: File): Prepared {
+        val converted = File(booksDir, "$id.epub")
+        val result = fb2Converter.convert({ source.inputStream() }, converted)
+
+        return result.fold(
+            onSuccess = { report ->
+                Prepared(
+                    metadata = SourceMetadata(
+                        title = report.info.title,
+                        author = report.info.authors.firstOrNull(),
+                        genre = report.info.genres.firstOrNull(),
+                        cover = fb2Cover(source, report.info.coverId),
+                    ),
+                    readerPath = converted.absolutePath,
+                    failure = null,
+                    failureDetail = null,
+                )
+            },
+            onFailure = { error ->
+                // Название и автора берём даже у книги, которую не открыть:
+                // в библиотеке она должна выглядеть книгой, а не файлом.
+                val fallback = readFb2(source)
+                Prepared(
+                    metadata = fallback,
+                    readerPath = null,
+                    failure = BookFailure.CONVERSION_FAILED,
+                    failureDetail = describeConversionFailure(error),
+                )
+            },
+        )
+    }
+
+    private fun describeConversionFailure(error: Throwable): String {
+        val failure = (error as? Fb2ConversionException)?.failure
+        return when (failure) {
+            Fb2ConversionFailure.NO_CONTENT ->
+                "В файле не нашлось ни одной главы — похоже, это не FB2."
+            Fb2ConversionFailure.UNREADABLE ->
+                "Файл не удалось прочитать до конца."
+            null -> "Неожиданная ошибка при разборе файла."
+        }
+    }
+
+    private fun fb2Cover(file: File, coverId: String?): android.graphics.Bitmap? {
+        val id = coverId ?: Fb2MetadataReader.read(file).coverId ?: return null
+        val bytes = Fb2MetadataReader.readBinary(file, id) ?: return null
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
     }
 
     private fun readFb2(file: File): SourceMetadata {

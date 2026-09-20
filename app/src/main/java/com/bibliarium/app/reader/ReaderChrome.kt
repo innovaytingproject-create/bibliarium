@@ -226,6 +226,7 @@ private fun ReaderFailure(
                         ReaderOpenError.FileMissing -> R.string.reader_error_missing
                         ReaderOpenError.Unreadable -> R.string.reader_error_unreadable
                         ReaderOpenError.UnsupportedFormat -> R.string.reader_error_unsupported
+                        ReaderOpenError.NotPrepared -> R.string.reader_error_not_prepared
                     },
                 ),
                 style = type.bodyMd,

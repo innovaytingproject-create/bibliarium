@@ -1,6 +1,7 @@
 package com.bibliarium.app.data.db
 
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookFailure
 import com.bibliarium.app.domain.BookFormat
 import com.bibliarium.app.domain.Highlight
 import com.bibliarium.app.domain.ReadingStatus
@@ -23,6 +24,11 @@ fun BookEntity.toDomain(): Book = Book(
     isFavorite = isFavorite,
     fileSize = fileSize,
     headHash = headHash,
+    readerPath = readerPath,
+    openFailure = openFailure?.let { code ->
+        runCatching { BookFailure.valueOf(code) }.getOrNull()
+    },
+    openFailureDetail = openFailureDetail,
 )
 
 fun Book.toEntity(): BookEntity = BookEntity(
@@ -42,6 +48,9 @@ fun Book.toEntity(): BookEntity = BookEntity(
     isFavorite = isFavorite,
     fileSize = fileSize,
     headHash = headHash,
+    readerPath = readerPath,
+    openFailure = openFailure?.name,
+    openFailureDetail = openFailureDetail,
 )
 
 fun HighlightEntity.toDomain(): Highlight = Highlight(

@@ -44,6 +44,9 @@ sealed interface ReaderOpenError {
 
     /** Формат известен модели, но читать его пока нечем. */
     data object UnsupportedFormat : ReaderOpenError
+
+    /** Книга в библиотеке есть, но к чтению не подготовлена. */
+    data object NotPrepared : ReaderOpenError
 }
 
 @OptIn(ExperimentalReadiumApi::class)
@@ -55,15 +58,20 @@ class ReaderContentOpener(
 
     suspend fun open(book: Book): Result<ReaderContent> {
         val engine = when (book.format) {
-            // FB2 читается как EPUB после конвертации при импорте. Пока конвертера
-            // нет, такие книги открыть нечем — об этом говорим прямо.
-            BookFormat.EPUB -> ReaderEngine.EPUB
+            // FB2 читается как EPUB: конвертация прошла при импорте.
+            BookFormat.EPUB, BookFormat.FB2 -> ReaderEngine.EPUB
             BookFormat.PDF -> ReaderEngine.PDF
-            BookFormat.FB2, BookFormat.DJVU ->
+            BookFormat.DJVU ->
                 return Result.failure(ReaderOpenException(ReaderOpenError.UnsupportedFormat))
         }
 
-        val file = File(book.filePath)
+        if (book.format == BookFormat.FB2 && book.readerPath == null) {
+            // Конвертация не удалась — открывать нечего, и сказать об этом
+            // надо честно, а не показывать пустой экран.
+            return Result.failure(ReaderOpenException(ReaderOpenError.NotPrepared))
+        }
+
+        val file = File(book.contentPath)
         if (!file.exists()) {
             return Result.failure(ReaderOpenException(ReaderOpenError.FileMissing))
         }

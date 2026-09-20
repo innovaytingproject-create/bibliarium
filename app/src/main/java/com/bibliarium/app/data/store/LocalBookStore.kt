@@ -38,6 +38,7 @@ class LocalBookStore(
             val entity = bookDao.findById(id) ?: return@withContext
             bookDao.deleteById(id)
             runCatching { File(entity.filePath).delete() }
+            entity.readerPath?.let { path -> runCatching { File(path).delete() } }
             entity.coverPath?.let { path -> runCatching { File(path).delete() } }
         }
     }
@@ -82,6 +83,24 @@ class LocalBookStore(
                 },
                 lastOpenedAt = System.currentTimeMillis(),
             )
+        }
+    }
+
+    override suspend fun retryPreparation(id: String): Result<Unit> = withContext(io) {
+        val entity = bookDao.findById(id)
+            ?: return@withContext Result.failure(IllegalArgumentException("Книга $id не найдена"))
+
+        val prepared = importer.prepareExisting(entity.id, entity.filePath, entity.format)
+        bookDao.updateOpenState(
+            id = entity.id,
+            readerPath = prepared.readerPath,
+            failure = prepared.failure?.name,
+            detail = prepared.failureDetail,
+        )
+        if (prepared.failure == null) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException(prepared.failureDetail ?: "Не получилось"))
         }
     }
 

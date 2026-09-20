@@ -25,7 +25,33 @@ data class Book(
     val fileSize: Long,
     /** SHA-256 первых 64 КБ исходного файла; null у книг, добавленных до появления отпечатков. */
     val headHash: String?,
-)
+    /**
+     * Файл для движка чтения. У FB2 это результат конвертации в EPUB,
+     * у остальных форматов null — читается сам [filePath].
+     */
+    val readerPath: String? = null,
+    /** Почему книга не открывается; null — открывается. */
+    val openFailure: BookFailure? = null,
+    /** Та же причина словами, как её показать человеку. */
+    val openFailureDetail: String? = null,
+) {
+    /** Файл, который надо отдать движку чтения. */
+    val contentPath: String get() = readerPath ?: filePath
+
+    val isReadable: Boolean get() = openFailure == null
+}
+
+/** Почему книга в библиотеке есть, а открыть её нельзя. */
+enum class BookFailure {
+    /** FB2 не удалось превратить в EPUB. */
+    CONVERSION_FAILED,
+
+    /** Файл на месте, но движок его не разобрал. */
+    UNREADABLE,
+
+    /** Файла больше нет на диске. */
+    FILE_MISSING,
+}
 
 enum class ReadingStatus {
     NOT_STARTED,

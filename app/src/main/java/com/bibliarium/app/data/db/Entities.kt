@@ -43,6 +43,16 @@ data class BookEntity(
      */
     val fileSize: Long,
     val headHash: String?,
+    /**
+     * Файл, который открывает движок чтения. Для FB2 это EPUB после
+     * конвертации; filePath при этом продолжает указывать на исходник,
+     * чтобы конвертацию можно было повторить.
+     */
+    val readerPath: String?,
+    /** Код причины, по которой книга не открывается; null — всё в порядке. */
+    val openFailure: String?,
+    /** Та же причина словами, для человека. */
+    val openFailureDetail: String?,
 )
 
 @Entity(

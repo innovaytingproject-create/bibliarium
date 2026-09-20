@@ -6,6 +6,7 @@ import com.bibliarium.app.data.db.BibliariumDatabase
 import com.bibliarium.app.data.db.ImportQueueDao
 import com.bibliarium.app.data.importer.BatchImporter
 import com.bibliarium.app.data.importer.BookImporter
+import com.bibliarium.app.data.importer.fb2.Fb2ToEpubConverter
 import com.bibliarium.app.data.access.FileAccessProvider
 import com.bibliarium.app.data.scan.BookScanner
 import com.bibliarium.app.data.scan.ScanMetadataReader
@@ -35,7 +36,10 @@ class AppContainer(context: Context) {
 
     private val database: BibliariumDatabase by lazy {
         Room.databaseBuilder(appContext, BibliariumDatabase::class.java, BibliariumDatabase.NAME)
-            .addMigrations(BibliariumDatabase.MIGRATION_1_2)
+            .addMigrations(
+                BibliariumDatabase.MIGRATION_1_2,
+                BibliariumDatabase.MIGRATION_2_3,
+            )
             .build()
     }
 
@@ -72,6 +76,7 @@ class AppContainer(context: Context) {
             publicationOpener = publicationOpener,
             booksDir = booksDir,
             coversDir = coversDir,
+            fb2Converter = Fb2ToEpubConverter(),
         )
     }
 

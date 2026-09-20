@@ -13,7 +13,7 @@ import androidx.sqlite.execSQL
         ShelfEntity::class,
         ImportQueueEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class BibliariumDatabase : RoomDatabase() {
@@ -24,6 +24,19 @@ abstract class BibliariumDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "bibliarium.db"
+
+        /**
+         * Третья версия знает, что книгу могло не получиться открыть, и где
+         * лежит файл для движка чтения. Снова миграция, а не пересоздание:
+         * в библиотеке уже есть добавленные книги.
+         */
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL("ALTER TABLE `books` ADD COLUMN `readerPath` TEXT")
+                connection.execSQL("ALTER TABLE `books` ADD COLUMN `openFailure` TEXT")
+                connection.execSQL("ALTER TABLE `books` ADD COLUMN `openFailureDetail` TEXT")
+            }
+        }
 
         /**
          * Первая версия ничего не знала об отпечатках файлов и о пакетном импорте.

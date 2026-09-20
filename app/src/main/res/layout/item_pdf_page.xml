@@ -10,7 +10,7 @@
         android:id="@+id/pdf_page_image"
         android:layout_width="@dimen/pdf_page_thumb_width"
         android:layout_height="@dimen/pdf_page_thumb_height"
-        android:background="@color/panel_background"
+        android:background="@drawable/pdf_page_frame"
         android:contentDescription="@null"
         android:scaleType="fitCenter" />
 

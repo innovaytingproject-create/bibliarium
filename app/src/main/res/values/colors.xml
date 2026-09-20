@@ -11,4 +11,5 @@
     <color name="panel_text">#202321</color>
     <color name="panel_text_secondary">#747872</color>
     <color name="panel_accent">#B44D38</color>
+    <color name="panel_line">#D8D4C8</color>
 </resources>

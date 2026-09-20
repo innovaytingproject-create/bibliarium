@@ -362,8 +362,9 @@ class ReaderActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_toc)
             .setItems(entries.map { it.title }.toTypedArray()) { _, index ->
-                goTo(entries[index])
-                setPanelsVisible(false)
+                // У PDF панели остаются: номер страницы — единственный отклик
+                // на переход, картинку страницы прочитать нельзя.
+                if (!goTo(entries[index])) setPanelsVisible(false)
             }
             .show()
     }
@@ -376,17 +377,16 @@ class ReaderActivity : AppCompatActivity() {
             activity = this,
             thumbnails = thumbnails,
             currentPage = viewModel.position.value.page ?: 1,
-            onPick = { page ->
-                jumpToPdfPage(page)
-                setPanelsVisible(false)
-            },
+            onPick = { page -> jumpToPdfPage(page) },
         ).show()
     }
 
-    private fun goTo(entry: TocEntry) {
+    /** Возвращает true, если перешли по странице PDF. */
+    private fun goTo(entry: TocEntry): Boolean {
         val page = entry.page
-        if (page != null && jumpToPdfPage(page)) return
+        if (page != null && jumpToPdfPage(page)) return true
         navigator?.go(entry.locator, animated = false)
+        return false
     }
 
     /**

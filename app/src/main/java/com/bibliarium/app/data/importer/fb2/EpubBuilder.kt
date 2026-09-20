@@ -42,14 +42,14 @@ class EpubBuilder(output: OutputStream) : AutoCloseable {
 
         writeText(
             "META-INF/container.xml",
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-              <rootfiles>
-                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-              </rootfiles>
-            </container>
-            """.trimIndent(),
+            XML_PROLOG +
+                "<container version=\"1.0\" " +
+                "xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">\n" +
+                "  <rootfiles>\n" +
+                "    <rootfile full-path=\"OEBPS/content.opf\" " +
+                "media-type=\"application/oebps-package+xml\"/>\n" +
+                "  </rootfiles>\n" +
+                "</container>\n",
         )
     }
 
@@ -201,46 +201,50 @@ class EpubBuilder(output: OutputStream) : AutoCloseable {
             append("    <meta property=\"dcterms:modified\">2026-01-01T00:00:00Z</meta>\n")
         }
 
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
-              <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-            $metadata  </metadata>
-              <manifest>
-            $manifest  </manifest>
-              <spine>
-            $spine  </spine>
-            </package>
-        """.trimIndent()
+        // Собирается вручную, без trimIndent: тот считает отступ по уже
+        // подставленным строкам, и у длинной аннотации или второй главы он
+        // выходил меньше отступа шаблона. Лишние пробелы уезжали в начало
+        // файла, пролог оказывался не первым, и Readium отказывался открывать
+        // книгу: «processing instructions must not start with xml».
+        return buildString {
+            append(XML_PROLOG)
+            append("<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" ")
+            append("unique-identifier=\"book-id\">\n")
+            append("  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n")
+            append(metadata)
+            append("  </metadata>\n")
+            append("  <manifest>\n")
+            append(manifest)
+            append("  </manifest>\n")
+            append("  <spine>\n")
+            append(spine)
+            append("  </spine>\n")
+            append("</package>\n")
+        }
     }
 
-    private fun buildNav(): String {
-        val items = chapters.joinToString("\n") {
-            "      <li><a href=\"${it.href}\">${escape(it.title)}</a></li>"
+    private fun buildNav(): String = buildString {
+        append(XML_PROLOG)
+        append("<html xmlns=\"http://www.w3.org/1999/xhtml\" ")
+        append("xmlns:epub=\"http://www.idpf.org/2007/ops\">\n")
+        append("<head><title>Оглавление</title><meta charset=\"utf-8\"/></head>\n")
+        append("<body>\n<nav epub:type=\"toc\">\n<ol>\n")
+        chapters.forEach {
+            append("<li><a href=\"${it.href}\">${escape(it.title)}</a></li>\n")
         }
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-              <head><title>Оглавление</title></head>
-              <body>
-                <nav epub:type="toc">
-                  <ol>
-            $items
-                  </ol>
-                </nav>
-              </body>
-            </html>
-        """.trimIndent()
+        append("</ol>\n</nav>\n</body>\n</html>\n")
     }
 
     private fun xhtmlHeader(title: String): String =
-        """<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+        XML_PROLOG +
+            """<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head><title>${escape(title)}</title><meta charset="utf-8"/></head>
 <body>
 """
 
     private companion object {
+        /** Пролог обязан быть первыми байтами файла — до единого пробела. */
+        const val XML_PROLOG = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         const val XHTML_FOOTER = "\n</body>\n</html>\n"
 
         fun escape(text: String): String = text

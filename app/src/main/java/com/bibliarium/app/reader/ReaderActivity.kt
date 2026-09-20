@@ -4,7 +4,6 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -63,6 +62,7 @@ class ReaderActivity : AppCompatActivity() {
     private lateinit var tocButton: Button
 
     private var navigator: Navigator? = null
+    private var pdfView: PDFView? = null
     private var content: ReaderContent? = null
     private var panelsVisible = true
 
@@ -212,7 +212,7 @@ class ReaderActivity : AppCompatActivity() {
             replace(R.id.reader_container, PdfNavigatorFragment::class.java, Bundle(), TAG)
         }
         val fragment = supportFragmentManager.findFragmentByTag(TAG)!!
-        keepPdfFitToWidth(fragment)
+        rememberPdfView(fragment)
         observeNightMode(fragment)
         return fragment
     }
@@ -276,7 +276,15 @@ class ReaderActivity : AppCompatActivity() {
     private fun observeLocator(navigator: VisualNavigator) {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                navigator.currentLocator.collectLatest { viewModel.onLocatorChanged(it) }
+                navigator.currentLocator.collectLatest {
+                    viewModel.onLocatorChanged(
+                        locator = it,
+                        // Номер страницы спрашиваем у самого PDFView: локатор
+                        // от pdfium в 3.3.0 уходит на страницу вперёд.
+                        pdfPage = pdfView?.let { view -> view.currentPage + 1 },
+                        pdfPageCount = pdfView?.pageCount,
+                    )
+                }
             }
         }
     }
@@ -353,26 +361,17 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     /**
-     * Щипок для масштаба разрешён, но после отпускания страница возвращается
-     * к вписанной: в увеличенной странице перелистывание работает не так,
-     * и человек теряет навигацию.
+     * Запоминает сам PDFView: из него читается номер показанной страницы.
+     *
+     * Своего обработчика касаний здесь больше нет. PDFView раздаёт жесты через
+     * DragPinchManager, а тот сам подписан слушателем касаний, и наш
+     * `setOnTouchListener` его снимал: вместе с ним пропадали и перелистывание,
+     * и свайп, и щипок. У View слушатель касаний один.
      */
-    private fun keepPdfFitToWidth(fragment: Fragment) {
+    private fun rememberPdfView(fragment: Fragment) {
         fragment.view?.post {
-            val pdfView = fragment.view?.findFirstPdfView()
-            android.util.Log.i(GESTURE_TAG, "PDFView для сброса масштаба найден=${pdfView != null}")
-            if (pdfView == null) return@post
-            pdfView.setOnTouchListener { _, event ->
-                if (event.actionMasked == MotionEvent.ACTION_UP ||
-                    event.actionMasked == MotionEvent.ACTION_CANCEL
-                ) {
-                    pdfView.postDelayed(
-                        { if (pdfView.zoom > 1.01f) pdfView.resetZoomWithAnimation() },
-                        ZOOM_RESET_DELAY_MS,
-                    )
-                }
-                false
-            }
+            pdfView = fragment.view?.findFirstPdfView()
+            android.util.Log.i(GESTURE_TAG, "PDFView найден=${pdfView != null}")
         }
     }
 
@@ -389,7 +388,6 @@ class ReaderActivity : AppCompatActivity() {
         private const val EXTRA_BOOK_ID = "bookId"
         private const val TAG = "navigator"
         private const val GESTURE_TAG = "BibliariumReader"
-        private const val ZOOM_RESET_DELAY_MS = 150L
         private const val MINUTES_IN_HOUR = 60
 
         fun intent(context: Context, bookId: String): Intent =

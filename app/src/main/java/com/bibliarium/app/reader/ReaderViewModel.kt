@@ -101,8 +101,13 @@ class ReaderViewModel(
         }
     }
 
-    /** Вызывается на каждое перелистывание. */
-    fun onLocatorChanged(locator: Locator) {
+    /**
+     * Вызывается на каждое перелистывание.
+     *
+     * Для PDF номер страницы приходит от самого PDFView, а не из локатора:
+     * в pdfium-адаптере 3.3.0 локатор уходит на страницу вперёд показанной.
+     */
+    fun onLocatorChanged(locator: Locator, pdfPage: Int? = null, pdfPageCount: Int? = null) {
         val id = bookId ?: return
         val content = (_state.value as? ReaderState.Ready)?.content ?: return
 
@@ -112,9 +117,9 @@ class ReaderViewModel(
 
         _position.value = positionOf(
             progress = progress,
-            totalPositions = content.totalPositions,
+            totalPositions = pdfPageCount ?: content.totalPositions,
             engine = content.engine,
-            position = locator.locations.position,
+            position = pdfPage ?: locator.locations.position,
         )
 
         viewModelScope.launch {
@@ -167,7 +172,9 @@ class ReaderViewModel(
         }
 
         return ReadingPosition(
-            progress = progress,
+            // У PDF доля считается по страницам: так процент и номер страницы
+            // на панели говорят одно и то же.
+            progress = page?.let { it.toFloat() / totalPositions } ?: progress,
             minutesLeft = minutes.roundToInt().coerceAtLeast(0),
             page = page,
             totalPages = page?.let { totalPositions },

@@ -53,9 +53,9 @@ class ReaderTest {
         val book = importAsset("sample.epub")
         openReader(book) {
             val locator = awaitLocator(book.id)
-            TestArtifacts.screenshot("reader-epub")
             assertNotNull("EPUB не открылся: навигатор не сообщил позицию", locator)
             assertLoadingGone()
+            TestArtifacts.screenshot("reader-epub")
         }
     }
 
@@ -64,9 +64,9 @@ class ReaderTest {
         val book = importAsset("sample.pdf")
         openReader(book) {
             val locator = awaitLocator(book.id)
-            TestArtifacts.screenshot("reader-pdf")
             assertNotNull("PDF не открылся: навигатор не сообщил позицию", locator)
             assertLoadingGone()
+            TestArtifacts.screenshot("reader-pdf")
         }
     }
 
@@ -128,8 +128,8 @@ class ReaderTest {
             compose.waitUntil(timeoutMillis = OPEN_TIMEOUT_MS) {
                 compose.onAllNodesWithText(BROKEN_MESSAGE).fetchSemanticsNodes().isNotEmpty()
             }
-            TestArtifacts.screenshot("reader-broken")
             compose.onNodeWithText(BROKEN_MESSAGE).assertIsDisplayed()
+            TestArtifacts.screenshot("reader-broken")
         }
     }
 

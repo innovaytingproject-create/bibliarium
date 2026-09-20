@@ -23,7 +23,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookFormat
+import com.bibliarium.app.domain.ReadingStatus
 import com.bibliarium.app.ui.shelf.BookSpine
+import com.bibliarium.app.ui.shelf.ShelfContent
 import com.bibliarium.app.ui.theme.BibliariumTheme
 import org.junit.Rule
 import org.junit.Test
@@ -42,6 +49,9 @@ class SpineProbeTest {
     @get:Rule
     val compose = createComposeRule()
 
+    private val device =
+        UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+
     @Test
     fun whichDrawingStageKillsTheEmulator() {
         var stage by mutableIntStateOf(0)
@@ -58,6 +68,11 @@ class SpineProbeTest {
             compose.waitForIdle()
             Thread.sleep(SETTLE_MS)
             Log.i(TAG, "стадия $step: нарисована, эмулятор жив")
+
+            // Обход дерева доступности — ровно то, чем UiAutomator ищет
+            // элементы на экране. Если валит именно он, будет видно здесь.
+            val seen = device.findObject(By.text("Bibliarium")) != null
+            Log.i(TAG, "стадия $step: дерево доступности обошли, шапку видно=$seen")
         }
 
         Log.i(TAG, "проба пройдена целиком")
@@ -68,6 +83,24 @@ class SpineProbeTest {
         val colors = BibliariumTheme.colors
         val textStyle = BibliariumTheme.type.spineTitle.copy(color = colors.spineInkLight)
         val measurer = rememberTextMeasurer()
+
+        if (stage >= STAGE_SHELF_EMPTY) {
+            ShelfContent(
+                books = probeBooks(
+                    when {
+                        stage >= STAGE_SHELF_MANY -> MANY_BOOKS
+                        stage >= STAGE_SHELF_FEW -> FEW_BOOKS
+                        else -> 0
+                    },
+                ),
+                isImporting = false,
+                onOpenBook = {},
+                onMenu = {},
+                onAddBook = {},
+                onOpenSettings = {},
+            )
+            return
+        }
 
         if (stage >= STAGE_REAL_SPINE) {
             Row {
@@ -137,8 +170,31 @@ class SpineProbeTest {
         }
     }
 
+    /** Книги для полки делаются прямо здесь: база и файлы для рисования не нужны. */
+    private fun probeBooks(count: Int): List<Book> = (0 until count).map { index ->
+        Book(
+            id = "probe-$index",
+            title = "Книга пробы $index",
+            author = "Автор ${index % PROBE_AUTHORS}",
+            format = BookFormat.EPUB,
+            filePath = "/dev/null",
+            coverPath = null,
+            addedAt = index.toLong(),
+            lastOpenedAt = null,
+            progress = 0f,
+            locator = null,
+            status = ReadingStatus.NOT_STARTED,
+            genre = null,
+            shelfId = null,
+            isFavorite = false,
+            fileSize = 0,
+            headHash = null,
+        )
+    }
+
     private companion object {
         const val TAG = "BibliariumProbe"
+        const val PROBE_AUTHORS = 7
 
         const val STAGE_RECT = 1
         const val STAGE_GRADIENT = 2
@@ -147,7 +203,10 @@ class SpineProbeTest {
         const val STAGE_ROTATED_TEXT = 5
         const val STAGE_REAL_SPINE = 6
         const val STAGE_MANY_SPINES = 7
-        const val LAST_STAGE = 7
+        const val STAGE_SHELF_EMPTY = 8
+        const val STAGE_SHELF_FEW = 9
+        const val STAGE_SHELF_MANY = 10
+        const val LAST_STAGE = 10
 
         val STAGE_NAMES = listOf(
             "заливку",
@@ -157,7 +216,13 @@ class SpineProbeTest {
             "повёрнутый текст",
             "настоящий корешок",
             "двадцать корешков",
+            "пустую полку",
+            "полку с шестью книгами",
+            "полку с сотней книг",
         )
+
+        const val FEW_BOOKS = 6
+        const val MANY_BOOKS = 100
 
         const val MANY = 20
         const val WIDTH = 50

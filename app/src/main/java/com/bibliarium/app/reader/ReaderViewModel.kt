@@ -33,6 +33,13 @@ data class ReadingPosition(
     val progress: Float,
     /** Оценка оставшегося времени в минутах; null, пока считать не из чего. */
     val minutesLeft: Int?,
+    /**
+     * Номер страницы и сколько их всего — только для PDF: там страница
+     * настоящая и постоянная. В EPUB страница зависит от шрифта и полей,
+     * и показывать её номер человеку нечестно.
+     */
+    val page: Int? = null,
+    val totalPages: Int? = null,
 )
 
 @OptIn(ExperimentalReadiumApi::class)
@@ -103,7 +110,12 @@ class ReaderViewModel(
             .toFloat()
             .coerceIn(0f, 1f)
 
-        _position.value = positionOf(progress, content.totalPositions, content.engine)
+        _position.value = positionOf(
+            progress = progress,
+            totalPositions = content.totalPositions,
+            engine = content.engine,
+            position = locator.locations.position,
+        )
 
         viewModelScope.launch {
             bookStore.saveProgress(id, progress, locator.serialize())
@@ -137,6 +149,7 @@ class ReaderViewModel(
         progress: Float,
         totalPositions: Int,
         engine: ReaderEngine,
+        position: Int? = null,
     ): ReadingPosition {
         if (totalPositions <= 0) return ReadingPosition(progress, null)
 
@@ -145,7 +158,20 @@ class ReaderViewModel(
             ReaderEngine.PDF -> left * MINUTES_PER_PDF_PAGE
             ReaderEngine.EPUB -> left * WORDS_PER_POSITION / WORDS_PER_MINUTE
         }
-        return ReadingPosition(progress, minutes.roundToInt().coerceAtLeast(0))
+
+        val page = when (engine) {
+            ReaderEngine.PDF ->
+                (position ?: ((progress * totalPositions).toInt() + 1))
+                    .coerceIn(1, totalPositions)
+            ReaderEngine.EPUB -> null
+        }
+
+        return ReadingPosition(
+            progress = progress,
+            minutesLeft = minutes.roundToInt().coerceAtLeast(0),
+            page = page,
+            totalPages = page?.let { totalPositions },
+        )
     }
 
     /**

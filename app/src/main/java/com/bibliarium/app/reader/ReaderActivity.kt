@@ -144,6 +144,14 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun progressLabel(position: ReadingPosition): String {
         val percent = (position.progress * 100).toInt()
+
+        // У PDF страница настоящая, и её номер человеку виден и полезен.
+        val page = position.page
+        val total = position.totalPages
+        if (page != null && total != null) {
+            return getString(R.string.reader_progress_page, page, total, percent)
+        }
+
         val minutes = position.minutesLeft
             ?: return getString(R.string.reader_progress, percent)
         return if (minutes < MINUTES_IN_HOUR) {
@@ -256,6 +264,7 @@ class ReaderActivity : AppCompatActivity() {
                     android.util.Log.i(
                         GESTURE_TAG,
                         "тап x=$x ширина=$width прокрутка=${overflowable.overflow.value.scroll} " +
+                            "страница=${overflowable.currentLocator.value.locations.position} " +
                             "обработано=$result",
                     )
                     return result
@@ -350,7 +359,9 @@ class ReaderActivity : AppCompatActivity() {
      */
     private fun keepPdfFitToWidth(fragment: Fragment) {
         fragment.view?.post {
-            val pdfView = fragment.view?.findFirstPdfView() ?: return@post
+            val pdfView = fragment.view?.findFirstPdfView()
+            android.util.Log.i(GESTURE_TAG, "PDFView для сброса масштаба найден=${pdfView != null}")
+            if (pdfView == null) return@post
             pdfView.setOnTouchListener { _, event ->
                 if (event.actionMasked == MotionEvent.ACTION_UP ||
                     event.actionMasked == MotionEvent.ACTION_CANCEL

@@ -198,6 +198,64 @@ class ReaderTest {
         settledScreenshot("reader-after-toc-jump")
     }
 
+    /**
+     * FB2 проходит весь путь целиком: конвертация при добавлении, открытие
+     * движком Readium и перелистывание до последней главы.
+     *
+     * Прежние проверки конвертера читали получившийся EPUB своим кодом и
+     * оставались зелёными на книге, которую сам Readium открыть не мог.
+     */
+    @Test
+    fun convertedFb2OpensAndPagesToTheEnd() {
+        openReader(importAsset("fb2_plain.fb2"))
+
+        val opened = device.wait(Until.hasObject(By.textContains("Глава первая")), OPEN_TIMEOUT)
+        settledScreenshot("reader-fb2-open")
+        assertTrue("Сконвертированный FB2 не открылся. На экране: ${screenMessage()}", opened)
+
+        // Панели убираем: они перекрывают края, по которым листают.
+        tapCenter()
+        device.wait(Until.gone(By.text("Назад")), PANEL_TIMEOUT)
+
+        var reachedEnd = false
+        repeat(MAX_PAGES) {
+            if (!reachedEnd) {
+                reachedEnd = device.findObject(By.textContains(LAST_CHAPTER_TEXT)) != null
+                if (!reachedEnd) tapRightThird()
+            }
+        }
+
+        settledScreenshot("reader-fb2-end")
+        assertTrue(
+            "За $MAX_PAGES тапов книга не долистана до конца: " +
+                "«$LAST_CHAPTER_TEXT» так и не показался",
+            reachedEnd,
+        )
+    }
+
+    /**
+     * Страницы PDF листаются тем же тапом по правой трети.
+     *
+     * Читать текст со страницы PDF нельзя — она нарисована картинкой. Поэтому
+     * смотрим на номер страницы в нижней панели: его человек тоже видит.
+     */
+    @Test
+    fun tapOnRightThirdTurnsPdfPage() {
+        openReader(importAsset("sample.pdf"))
+
+        val label = device.wait(Until.findObject(By.textStartsWith("Страница")), OPEN_TIMEOUT)
+        assertNotNull("Номер страницы PDF не показан. На экране: ${screenMessage()}", label)
+        val firstPage = label.text
+
+        val turned = (1..MAX_TAPS).any {
+            tapRightThird()
+            device.findObject(By.textStartsWith("Страница"))?.text != firstPage
+        }
+
+        settledScreenshot("reader-pdf-after-page-turn")
+        assertTrue("Тап по правой трети не сменил страницу PDF: так и «$firstPage»", turned)
+    }
+
     @Test
     fun brokenFileExplainsWhatWentWrong() {
         val book = importAsset("sample.epub")
@@ -237,6 +295,12 @@ class ReaderTest {
         device.wait(Until.hasObject(By.textContains(text)), OPEN_TIMEOUT)
     }
 
+    /** Что видно человеку вместо книги: текст ошибки, если он на экране. */
+    private fun screenMessage(): String =
+        device.findObject(By.textContains("Не удалось открыть"))?.text
+            ?: device.findObject(By.textContains("Открываем книгу"))?.text
+            ?: "ошибки на экране нет"
+
     private fun progressOf(id: String): Float =
         runBlocking { store.get(id) }?.progress ?: 0f
 
@@ -270,5 +334,7 @@ class ReaderTest {
         const val TAP_SETTLE_MS = 700L
         const val SCREENSHOT_SETTLE_MS = 1_500L
         const val MAX_TAPS = 8
+        const val MAX_PAGES = 30
+        const val LAST_CHAPTER_TEXT = "Текст третьей главы"
     }
 }

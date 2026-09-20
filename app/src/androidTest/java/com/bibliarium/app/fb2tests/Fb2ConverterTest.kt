@@ -168,7 +168,50 @@ class Fb2ConverterTest {
         )
     }
 
+    /**
+     * Каждый XML внутри собранной книги обязан начинаться ровно с пролога.
+     *
+     * Проверка идёт по настоящим байтам выхода, а не по коду: телефон отказался
+     * открывать FB2 с «processing instructions must not start with xml», и то,
+     * куда съехал пролог, видно только в шестнадцатеричном дампе. Дамп головы
+     * каждого файла уходит в артефакты — читать его можно глазами.
+     */
+    @Test
+    fun everyXmlFileStartsWithTheProlog() {
+        val (_, epub) = convert("fb2_plain.fb2")
+
+        val broken = mutableListOf<String>()
+        epub.names()
+            .filter { it.endsWith(".xhtml") || it.endsWith(".opf") || it.endsWith(".xml") }
+            .sorted()
+            .forEach { name ->
+                val bytes = epub.bytesOf(name)
+                val head = bytes.copyOfRange(0, minOf(HEAD_BYTES, bytes.size))
+                TestArtifacts.note("fb2-head-" + name.replace('/', '-'), hexDump(head))
+                if (!head.toString(Charsets.UTF_8).startsWith(PROLOG)) {
+                    broken += name + ":\n" +
+                        hexDump(head.copyOfRange(0, minOf(BROKEN_BYTES, head.size)))
+                }
+            }
+
+        assertTrue(
+            "Пролог <?xml стоит не в начале файла:\n" + broken.joinToString("\n"),
+            broken.isEmpty(),
+        )
+    }
+
     // --- вспомогательное ---------------------------------------------------
+
+    /** Шестнадцатеричный дамп с колонкой печатных знаков — как в hexdump -C. */
+    private fun hexDump(bytes: ByteArray): String =
+        bytes.toList().chunked(HEX_ROW).mapIndexed { row, chunk ->
+            val hex = chunk.joinToString(" ") { "%02x".format(it) }
+            val text = chunk.map { byte ->
+                val code = byte.toInt() and 0xFF
+                if (code in PRINTABLE_FIRST..PRINTABLE_LAST) code.toChar() else '.'
+            }.joinToString("")
+            "%04d  %-47s |%s|".format(row * HEX_ROW, hex, text)
+        }.joinToString("\n")
 
     private fun convert(assetName: String): Pair<Fb2ConversionReport, ZipFile> {
         val target = File(workDir, "$assetName.epub")
@@ -193,5 +236,14 @@ class Fb2ConverterTest {
     private fun ZipFile.bytesOf(path: String): ByteArray {
         val entry = getEntry(path) ?: throw AssertionError("В книге нет файла $path: ${names()}")
         return getInputStream(entry).use { it.readBytes() }
+    }
+
+    private companion object {
+        const val PROLOG = "<?xml"
+        const val HEAD_BYTES = 200
+        const val BROKEN_BYTES = 48
+        const val HEX_ROW = 16
+        const val PRINTABLE_FIRST = 0x20
+        const val PRINTABLE_LAST = 0x7E
     }
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Миниатюра страницы PDF в сетке. Размеры живут здесь, а не в коде:
+         по ширине считается и сама картинка, которую рисует PdfRenderer. -->
+    <dimen name="pdf_page_thumb_width">88dp</dimen>
+    <dimen name="pdf_page_thumb_height">120dp</dimen>
+</resources>

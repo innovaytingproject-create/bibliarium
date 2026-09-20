@@ -97,6 +97,8 @@
     <string name="reader_back">Назад</string>
     <string name="reader_toc">Оглавление</string>
     <string name="reader_toc_empty">В этой книге нет оглавления.</string>
+    <string name="reader_pages">Страницы</string>
+    <string name="reader_pages_empty">Страницы этой книги показать не удалось.</string>
     <string name="reader_settings">Настройки</string>
     <string name="reader_progress">%1$d %%</string>
     <string name="reader_progress_page">Страница %1$d из %2$d · %3$d %%</string>

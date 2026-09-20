@@ -18,6 +18,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.bibliarium.app.R
 import com.bibliarium.app.appContainer
 import com.github.barteksc.pdfviewer.PDFView
+import java.io.File
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
@@ -63,6 +64,7 @@ class ReaderActivity : AppCompatActivity() {
 
     private var navigator: Navigator? = null
     private var pdfView: PDFView? = null
+    private var pdfThumbnails: PdfPageThumbnails? = null
     private var content: ReaderContent? = null
     private var panelsVisible = true
 
@@ -118,11 +120,7 @@ class ReaderActivity : AppCompatActivity() {
                             }
                             content = state.content
                             titleView.text = state.content.book.title
-                            tocButton.visibility = if (state.content.tableOfContents.isEmpty()) {
-                                View.GONE
-                            } else {
-                                View.VISIBLE
-                            }
+                            setUpTocButton(state.content)
                             hideStatus()
                             setPanelsVisible(true)
                         }
@@ -322,23 +320,87 @@ class ReaderActivity : AppCompatActivity() {
         status.visibility = View.GONE
     }
 
+    /**
+     * Кнопка называет то, что откроется: у книги с оглавлением — «Оглавление»,
+     * у PDF без закладок — «Страницы». Серую кнопку или пустое окно человек
+     * читает как поломку, а PDF без закладок — обычное дело: скан это картинки,
+     * структуры внутри нет.
+     */
+    private fun setUpTocButton(content: ReaderContent) {
+        val hasToc = content.tableOfContents.isNotEmpty()
+        when {
+            hasToc -> {
+                tocButton.setText(R.string.reader_toc)
+                tocButton.visibility = View.VISIBLE
+            }
+
+            content.engine == ReaderEngine.PDF -> {
+                tocButton.setText(R.string.reader_pages)
+                tocButton.visibility = View.VISIBLE
+            }
+
+            else -> tocButton.visibility = View.GONE
+        }
+    }
+
     private fun showTableOfContents() {
-        val entries = content?.tableOfContents.orEmpty()
+        val current = content ?: return
+        val entries = current.tableOfContents
+
         if (entries.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setMessage(R.string.reader_toc_empty)
-                .setPositiveButton(R.string.reader_close, null)
-                .show()
+            if (current.engine == ReaderEngine.PDF) {
+                showPdfPages(current)
+            } else {
+                AlertDialog.Builder(this)
+                    .setMessage(R.string.reader_toc_empty)
+                    .setPositiveButton(R.string.reader_close, null)
+                    .show()
+            }
             return
         }
 
         AlertDialog.Builder(this)
             .setTitle(R.string.reader_toc)
             .setItems(entries.map { it.title }.toTypedArray()) { _, index ->
-                navigator?.go(entries[index].locator, animated = false)
+                goTo(entries[index])
                 setPanelsVisible(false)
             }
             .show()
+    }
+
+    private fun showPdfPages(current: ReaderContent) {
+        val thumbnails = pdfThumbnails
+            ?: PdfPageThumbnails(File(current.book.contentPath)).also { pdfThumbnails = it }
+
+        PdfPagesDialog(
+            activity = this,
+            thumbnails = thumbnails,
+            currentPage = viewModel.position.value.page ?: 1,
+            onPick = { page ->
+                jumpToPdfPage(page)
+                setPanelsVisible(false)
+            },
+        ).show()
+    }
+
+    private fun goTo(entry: TocEntry) {
+        val page = entry.page
+        if (page != null && jumpToPdfPage(page)) return
+        navigator?.go(entry.locator, animated = false)
+    }
+
+    /**
+     * Переход к странице PDF идёт мимо навигатора, прямо в PDFView.
+     *
+     * В pdfium-адаптере 3.3.0 номер страницы по дороге уменьшается ещё на
+     * единицу, и переход по закладке попадал на страницу раньше нужной
+     * (в 3.4.0 этот сдвиг убрали). PDFView считает страницы без сюрпризов.
+     */
+    private fun jumpToPdfPage(page: Int): Boolean {
+        val view = pdfView ?: return false
+        if (page < 1 || page > view.pageCount) return false
+        view.jumpTo(page - 1, true)
+        return true
     }
 
     private fun showSettings() {
@@ -382,6 +444,12 @@ class ReaderActivity : AppCompatActivity() {
             getChildAt(index).findFirstPdfView()?.let { return it }
         }
         return null
+    }
+
+    override fun onDestroy() {
+        pdfThumbnails?.close()
+        pdfThumbnails = null
+        super.onDestroy()
     }
 
     companion object {

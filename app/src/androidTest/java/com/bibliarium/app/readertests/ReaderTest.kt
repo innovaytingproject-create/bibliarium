@@ -247,6 +247,7 @@ class ReaderTest {
         assertNotNull("Номер страницы PDF не показан. На экране: ${screenMessage()}", label)
         val firstPage = label.text
 
+
         val turned = (1..MAX_TAPS).any {
             tapRightThird()
             device.findObject(By.textStartsWith("Страница"))?.text != firstPage
@@ -254,6 +255,68 @@ class ReaderTest {
 
         settledScreenshot("reader-pdf-after-page-turn")
         assertTrue("Тап по правой трети не сменил страницу PDF: так и «$firstPage»", turned)
+    }
+
+    /**
+     * У PDF с закладками оглавление настоящее: главы видны, переход работает.
+     */
+    @Test
+    fun pdfBookmarksOpenChosenChapter() {
+        openReader(importAsset("sample_outline.pdf"))
+        awaitPageLabel()
+
+        val button = device.findObject(By.text("Оглавление"))
+        assertNotNull(
+            "Кнопки «Оглавление» нет — закладки PDF не прочитались. " +
+                "Кнопка сейчас: ${tocButtonText()}",
+            button,
+        )
+        button.click()
+
+        assertTrue(
+            "Список закладок не открылся",
+            device.wait(Until.hasObject(By.text("Глава 3")), PANEL_TIMEOUT),
+        )
+        settledScreenshot("reader-pdf-toc")
+
+        device.findObject(By.text("Глава 3")).click()
+        assertTrue(
+            "Переход по закладке попал не на ту страницу: ${pageLabelText()}",
+            device.wait(Until.hasObject(By.textStartsWith("Страница 6 из 8")), OPEN_TIMEOUT),
+        )
+        settledScreenshot("reader-pdf-toc-jump")
+    }
+
+    /**
+     * У PDF без закладок вместо пустого окна — сетка страниц.
+     *
+     * Так устроены сканы: внутри одни картинки, брать оглавление неоткуда.
+     */
+    @Test
+    fun pdfWithoutBookmarksShowsPageGrid() {
+        openReader(importAsset("sample.pdf"))
+        awaitPageLabel()
+
+        val button = device.findObject(By.text("Страницы"))
+        assertNotNull(
+            "Кнопки «Страницы» нет, хотя закладок в книге нет. " +
+                "Кнопка сейчас: ${tocButtonText()}",
+            button,
+        )
+        button.click()
+
+        assertTrue(
+            "Сетка страниц не открылась",
+            device.wait(Until.hasObject(By.text("4")), PANEL_TIMEOUT),
+        )
+        settledScreenshot("reader-pdf-pages")
+
+        device.findObject(By.text("3")).click()
+        assertTrue(
+            "Тап по странице не открыл её: ${pageLabelText()}",
+            device.wait(Until.hasObject(By.textStartsWith("Страница 3 из 4")), OPEN_TIMEOUT),
+        )
+        settledScreenshot("reader-pdf-pages-jump")
     }
 
     @Test
@@ -294,6 +357,19 @@ class ReaderTest {
     private fun awaitText(text: String) {
         device.wait(Until.hasObject(By.textContains(text)), OPEN_TIMEOUT)
     }
+
+    private fun awaitPageLabel(): String {
+        device.wait(Until.findObject(By.textStartsWith("Страница")), OPEN_TIMEOUT)
+        return pageLabelText()
+    }
+
+    private fun pageLabelText(): String =
+        device.findObject(By.textStartsWith("Страница"))?.text ?: "номера страницы нет"
+
+    private fun tocButtonText(): String =
+        device.findObject(By.text("Оглавление"))?.text
+            ?: device.findObject(By.text("Страницы"))?.text
+            ?: "кнопки нет вовсе"
 
     /** Что видно человеку вместо книги: текст ошибки, если он на экране. */
     private fun screenMessage(): String =

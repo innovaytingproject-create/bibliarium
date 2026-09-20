@@ -6,6 +6,7 @@ import com.bibliarium.app.domain.BookFormat
 import java.io.File
 import org.json.JSONObject
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.publication.services.positions
@@ -37,8 +38,13 @@ class ReaderContent(
     }
 }
 
-/** Строка оглавления. */
-data class TocEntry(val title: String, val locator: Locator)
+/**
+ * Строка оглавления.
+ *
+ * [page] заполнен только у PDF: там переход делается по номеру страницы,
+ * а не через локатор (см. ReaderActivity.jumpToPdfPage).
+ */
+data class TocEntry(val title: String, val locator: Locator, val page: Int? = null)
 
 sealed interface ReaderOpenError {
     /** Место обрыва словами — то, что стоит показать и записать в лог. */
@@ -120,7 +126,7 @@ class ReaderContentOpener(
             }
 
         val positions = runCatching { publication.positions() }.getOrDefault(emptyList())
-        val toc = runCatching { buildToc(publication) }.getOrDefault(emptyList())
+        val toc = runCatching { buildToc(publication, engine) }.getOrDefault(emptyList())
 
         return Result.success(
             ReaderContent(
@@ -135,19 +141,50 @@ class ReaderContentOpener(
     }
 
     /**
-     * Оглавление берём из книги, а если его там нет — из порядка чтения.
-     * Пустой список глав на экране выглядит как поломка, а он бывает
-     * у совершенно нормальных книг.
+     * Оглавление книги.
+     *
+     * У EPUB, если оглавления нет, вместо него берётся порядок чтения: там это
+     * настоящие файлы глав, и список получается осмысленный. У PDF порядок
+     * чтения — это весь документ одной строкой, подставлять его незачем.
+     * Пустой список у PDF означает ровно одно: закладок в файле нет, и экран
+     * покажет вместо оглавления сетку страниц.
      */
-    private suspend fun buildToc(publication: Publication): List<TocEntry> {
-        val links = publication.tableOfContents.ifEmpty { publication.readingOrder }
-        return links.mapIndexedNotNull { index, link ->
-            val locator = publication.locatorFromLink(link) ?: return@mapIndexedNotNull null
-            val title = link.title?.trim()?.takeIf { it.isNotEmpty() }
+    private suspend fun buildToc(
+        publication: Publication,
+        engine: ReaderEngine,
+    ): List<TocEntry> {
+        val links = when (engine) {
+            ReaderEngine.PDF -> publication.tableOfContents
+            ReaderEngine.EPUB ->
+                publication.tableOfContents.ifEmpty { publication.readingOrder }
+        }
+        return flatten(links).mapIndexedNotNull { index, entry ->
+            val locator = publication.locatorFromLink(entry.link)
+                ?: return@mapIndexedNotNull null
+            val title = entry.link.title?.trim()?.takeIf { it.isNotEmpty() }
                 ?: "Часть ${index + 1}"
-            TocEntry(title, locator)
+            TocEntry(
+                title = entry.indent + title,
+                locator = locator,
+                page = pageOf(locator),
+            )
         }
     }
+
+    /** Вложенные разделы показываются тем же списком, но со сдвигом. */
+    private fun flatten(links: List<Link>, depth: Int = 0): List<FlatLink> =
+        links.flatMap { link ->
+            listOf(FlatLink(link, NESTING_INDENT.repeat(depth))) +
+                flatten(link.children, depth + 1)
+        }
+
+    /** Закладка PDF приезжает ссылкой вида `book.pdf#page=7`. */
+    private fun pageOf(locator: Locator): Int? =
+        locator.locations.fragments.firstNotNullOfOrNull { fragment ->
+            PAGE_FRAGMENT.find(fragment)?.groupValues?.get(1)?.toIntOrNull()
+        }
+
+    private data class FlatLink(val link: Link, val indent: String)
 
     /** Разворачивает цепочку причин Readium в одну строку. */
     private fun describe(error: org.readium.r2.shared.util.Error): String {
@@ -164,6 +201,8 @@ class ReaderContentOpener(
 
     private companion object {
         const val MAX_CAUSE_DEPTH = 5
+        const val NESTING_INDENT = "    "
+        val PAGE_FRAGMENT = Regex("page=(\\d+)")
     }
 }
 

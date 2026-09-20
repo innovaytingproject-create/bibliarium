@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Клетка сетки страниц: миниатюра и номер под ней. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/pdf_page_image"
+        android:layout_width="@dimen/pdf_page_thumb_width"
+        android:layout_height="@dimen/pdf_page_thumb_height"
+        android:background="@color/panel_background"
+        android:contentDescription="@null"
+        android:scaleType="fitCenter" />
+
+    <TextView
+        android:id="@+id/pdf_page_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/panel_text_secondary"
+        android:textSize="13sp" />
+</LinearLayout>

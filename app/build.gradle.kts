@@ -86,6 +86,8 @@ dependencies {
 
     // Навигаторы Readium — фрагменты, и они разворачивают виджеты AppCompat.
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.android.pdf.viewer)
 
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)

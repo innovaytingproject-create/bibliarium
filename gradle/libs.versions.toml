@@ -20,6 +20,8 @@ desugar = "2.1.5"
 readium = "3.3.0"
 
 androidx-appcompat = "1.7.1"
+androidx-fragment = "1.8.9"
+android-pdf-viewer = "3.2.8"
 androidx-core = "1.18.0"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.10.0"
@@ -50,6 +52,12 @@ readium-adapter-pdfium-document = { module = "org.readium.kotlin-toolkit:readium
 readium-adapter-pdfium-navigator = { module = "org.readium.kotlin-toolkit:readium-adapter-pdfium-navigator", version.ref = "readium" }
 
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
+androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "androidx-fragment" }
+
+# Адаптер Readium прячет AndroidPdfViewer как implementation, поэтому PDFView
+# не виден нашему коду. Объявляем ту же версию явно — ночной режим и сброс
+# масштаба делаются прямо на этом виджете.
+android-pdf-viewer = { module = "com.github.marain87:AndroidPdfViewer", version.ref = "android-pdf-viewer" }
 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }

@@ -32,6 +32,7 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.pdf.PdfNavigatorFragment
+import org.readium.r2.navigator.preferences.ReadingProgression
 import org.readium.r2.shared.ExperimentalReadiumApi
 
 /**
@@ -224,10 +225,26 @@ class ReaderActivity : AppCompatActivity() {
                     val width = overflowable.publicationView.width.toDouble()
                     if (width <= 0) return false
 
+                    // Направление письма учитываем сами: в интерфейсе навигатора
+                    // есть только «вперёд» и «назад», а трети — левая и правая.
+                    val rightToLeft = overflowable.overflow.value.readingProgression ==
+                        ReadingProgression.RTL
                     val x = event.point.x
                     val result = when {
-                        x < width / 3 -> overflowable.goLeft(animated = true)
-                        x > width * 2 / 3 -> overflowable.goRight(animated = true)
+                        x < width / 3 ->
+                            if (rightToLeft) {
+                                overflowable.goForward(animated = true)
+                            } else {
+                                overflowable.goBackward(animated = true)
+                            }
+
+                        x > width * 2 / 3 ->
+                            if (rightToLeft) {
+                                overflowable.goBackward(animated = true)
+                            } else {
+                                overflowable.goForward(animated = true)
+                            }
+
                         else -> {
                             setPanelsVisible(!panelsVisible)
                             true

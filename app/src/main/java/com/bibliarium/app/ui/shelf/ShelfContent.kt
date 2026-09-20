@@ -1,5 +1,6 @@
 package com.bibliarium.app.ui.shelf
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -37,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -409,13 +411,22 @@ private fun Tier(
         }
 
         // Полка под рядом: полоса 12dp и линия сверху — из DESIGN.md.
-        Box(
+        // Рисуется одним Canvas, а не Box с разделителем внутри: на эмуляторе
+        // API 34 именно эта связка уносила всю машину (см. пробу
+        // ShelfProbeTest). Заодно это на один узел разметки меньше в каждом
+        // ярусе.
+        Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(SHELF_BOARD_HEIGHT.dp)
-                .background(colors.shelfBoard),
+                .height(SHELF_BOARD_HEIGHT.dp),
         ) {
-            HorizontalDivider(thickness = 1.dp, color = colors.shelfBoardEdge)
+            drawRect(colors.shelfBoard)
+            drawLine(
+                color = colors.shelfBoardEdge,
+                start = Offset(0f, 0f),
+                end = Offset(size.width, 0f),
+                strokeWidth = 1f,
+            )
         }
     }
 }

@@ -2,6 +2,7 @@ package com.bibliarium.app.probe
 
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
@@ -107,6 +109,43 @@ class ShelfProbeTest {
                 }
             }
 
+            STAGE_BOARD_PLAIN -> LazyColumn {
+                item(key = "row") {
+                    Column {
+                        ClickableRow(books)
+                        // Только заливка, без разделителя внутри.
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(BOARD.dp)
+                                .background(colors.shelfBoard),
+                        )
+                    }
+                }
+            }
+
+            STAGE_BOARD_CANVAS -> LazyColumn {
+                item(key = "row") {
+                    Column {
+                        ClickableRow(books)
+                        // Как теперь в приложении: и полоса, и линия одним Canvas.
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(BOARD.dp),
+                        ) {
+                            drawRect(colors.shelfBoard)
+                            drawLine(
+                                color = colors.shelfBoardEdge,
+                                start = Offset(0f, 0f),
+                                end = Offset(size.width, 0f),
+                                strokeWidth = 1f,
+                            )
+                        }
+                    }
+                }
+            }
+
             STAGE_BOARD -> LazyColumn {
                 item(key = "row") {
                     Column {
@@ -170,6 +209,18 @@ class ShelfProbeTest {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
+    @Composable
+    private fun ClickableRow(books: List<Book>) {
+        LazyRow {
+            items(items = books, key = { it.id }) { book ->
+                Box(modifier = Modifier.combinedClickable(onClick = {}, onLongClick = {})) {
+                    Spine(book)
+                }
+            }
+        }
+    }
+
     @Composable
     private fun Spine(book: Book) {
         BookSpine(title = book.title, author = book.author)
@@ -203,17 +254,21 @@ class ShelfProbeTest {
         const val STAGE_LAZY_ROW = 2
         const val STAGE_LAZY_COLUMN = 3
         const val STAGE_CLICKABLE = 4
-        const val STAGE_BOARD = 5
-        const val STAGE_HEADER = 6
-        const val STAGE_SHELF = 7
-        const val LAST_STAGE = 7
+        const val STAGE_BOARD_PLAIN = 5
+        const val STAGE_BOARD_CANVAS = 6
+        const val STAGE_BOARD = 7
+        const val STAGE_HEADER = 8
+        const val STAGE_SHELF = 9
+        const val LAST_STAGE = 9
 
         val NAMES = listOf(
             "обычный ряд корешков",
             "ленивый ряд",
             "ленивый ряд в ленивом столбце",
             "плюс нажатие на корешок",
-            "плюс полка-полоса",
+            "полку-полосу без разделителя",
+            "полку-полосу одним Canvas",
+            "полку-полосу с разделителем внутри (старый вариант)",
             "плюс заголовок яруса",
             "настоящий экран полки",
         )

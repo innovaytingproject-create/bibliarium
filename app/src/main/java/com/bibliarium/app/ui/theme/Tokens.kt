@@ -31,6 +31,10 @@ data class ColorTokens(
     val line: Color,
     /** Палитра корешков — индекс выбирается из хэша названия (раздел 5 ТЗ). */
     val spinePalette: List<Color>,
+    /** Буквы на светлом корешке. */
+    val spineInkDark: Color,
+    /** Буквы на тёмном корешке. */
+    val spineInkLight: Color,
 )
 
 /** Геометрия и характер корешка, зависящие от темы. */
@@ -41,6 +45,9 @@ data class SpineStyleTokens(
     val embossed: Boolean,
     /** Шаблоны раскладки значков и линий — только Archive. */
     val patterned: Boolean,
+    /** Светлая грань слева и затенение справа: из DESIGN.md, эффект цилиндра. */
+    val highlight: Color,
+    val shade: Color,
 )
 
 /** Отступы из DESIGN.md. */
@@ -101,6 +108,8 @@ internal val ArchiveLightColors = ColorTokens(
     onAccent = Color(0xFFF2F0EA),
     line = Color(0xFFD8D4C8),
     spinePalette = ArchiveSpinePalette,
+    spineInkDark = Color(0xFF202321),
+    spineInkLight = Color(0xFFF2F0EA),
 )
 
 internal val ArchiveDarkColors = ColorTokens(
@@ -115,6 +124,8 @@ internal val ArchiveDarkColors = ColorTokens(
     onAccent = Color(0xFF141515),
     line = Color(0xFF2C2E2D),
     spinePalette = ArchiveSpinePalette,
+    spineInkDark = Color(0xFF202321),
+    spineInkLight = Color(0xFFECEDE8),
 )
 
 internal val SpineLightColors = ColorTokens(
@@ -129,6 +140,8 @@ internal val SpineLightColors = ColorTokens(
     onAccent = Color(0xFFFFFFFF),
     line = Color(0xFFE2E5E1),
     spinePalette = SpineSpinePalette,
+    spineInkDark = Color(0xFF1A1C1B),
+    spineInkLight = Color(0xFFF4F5F2),
 )
 
 internal val SpineDarkColors = ColorTokens(
@@ -143,6 +156,8 @@ internal val SpineDarkColors = ColorTokens(
     onAccent = Color(0xFF111211),
     line = Color(0xFF303431),
     spinePalette = SpineSpinePalette,
+    spineInkDark = Color(0xFF1A1C1B),
+    spineInkLight = Color(0xFFF4F5F2),
 )
 
 internal fun colorTokensFor(variant: ThemeVariant, dark: Boolean): ColorTokens =
@@ -154,7 +169,19 @@ internal fun colorTokensFor(variant: ThemeVariant, dark: Boolean): ColorTokens =
 internal fun spineStyleFor(variant: ThemeVariant): SpineStyleTokens =
     when (variant) {
         // «Sharp 2px to 4px corners» + цилиндрическая тень из DESIGN.md.
-        ThemeVariant.ARCHIVE -> SpineStyleTokens(corner = 3.dp, embossed = true, patterned = true)
+        ThemeVariant.ARCHIVE -> SpineStyleTokens(
+            corner = 3.dp,
+            embossed = true,
+            patterned = true,
+            highlight = Color(0x40FFFFFF),
+            shade = Color(0x1F000000),
+        )
         // «корешки плоские, без шаблонов и тени цилиндра, скругление 3dp».
-        ThemeVariant.SPINE -> SpineStyleTokens(corner = 3.dp, embossed = false, patterned = false)
+        ThemeVariant.SPINE -> SpineStyleTokens(
+            corner = 3.dp,
+            embossed = false,
+            patterned = false,
+            highlight = Color.Transparent,
+            shade = Color.Transparent,
+        )
     }

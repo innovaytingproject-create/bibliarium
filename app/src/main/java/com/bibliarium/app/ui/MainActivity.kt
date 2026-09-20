@@ -56,6 +56,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun BibliariumApp(container: AppContainer) {
     var screen by rememberSaveable { mutableStateOf(Screen.LIBRARY) }
+    // Настройки открываются и с полки, и из «Добавить книгу»: возвращаться
+    // надо туда, откуда пришли.
+    var settingsOrigin by rememberSaveable { mutableStateOf(Screen.ADD_BOOK) }
 
     val libraryViewModel: LibraryViewModel = viewModel(
         factory = LibraryViewModel.factory(container),
@@ -63,7 +66,8 @@ private fun BibliariumApp(container: AppContainer) {
 
     BackHandler(enabled = screen != Screen.LIBRARY) {
         screen = when (screen) {
-            Screen.SCAN, Screen.SETTINGS -> Screen.ADD_BOOK
+            Screen.SCAN -> Screen.ADD_BOOK
+            Screen.SETTINGS -> settingsOrigin
             else -> Screen.LIBRARY
         }
     }
@@ -77,12 +81,19 @@ private fun BibliariumApp(container: AppContainer) {
                 onOpenBook = { bookId ->
                     context.startActivity(ReaderActivity.intent(context, bookId))
                 },
+                onOpenSettings = {
+                    settingsOrigin = Screen.LIBRARY
+                    screen = Screen.SETTINGS
+                },
             )
         }
 
         Screen.ADD_BOOK -> AddBookScreen(
             onScan = { screen = Screen.SCAN },
-            onOpenSettings = { screen = Screen.SETTINGS },
+            onOpenSettings = {
+                settingsOrigin = Screen.ADD_BOOK
+                screen = Screen.SETTINGS
+            },
             onFilePicked = { uri ->
                 libraryViewModel.import(uri)
                 screen = Screen.LIBRARY
@@ -97,7 +108,10 @@ private fun BibliariumApp(container: AppContainer) {
             ScanScreen(
                 viewModel = scanViewModel,
                 onBack = { screen = Screen.ADD_BOOK },
-                onOpenSettings = { screen = Screen.SETTINGS },
+                onOpenSettings = {
+                    settingsOrigin = Screen.SCAN
+                    screen = Screen.SETTINGS
+                },
             )
         }
 
@@ -108,7 +122,7 @@ private fun BibliariumApp(container: AppContainer) {
             )
             SettingsScreen(
                 viewModel = settingsViewModel,
-                onBack = { screen = Screen.ADD_BOOK },
+                onBack = { screen = settingsOrigin },
             )
         }
     }

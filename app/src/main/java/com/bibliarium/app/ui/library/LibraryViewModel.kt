@@ -72,6 +72,10 @@ class LibraryViewModel(
         }
     }
 
+    fun toggleFavorite(book: Book) {
+        viewModelScope.launch { bookStore.setFavorite(book.id, !book.isFavorite) }
+    }
+
     fun delete(id: String) {
         viewModelScope.launch { bookStore.delete(id) }
     }

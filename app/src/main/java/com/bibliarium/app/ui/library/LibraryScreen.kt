@@ -1,26 +1,10 @@
 package com.bibliarium.app.ui.library
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -32,31 +16,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.bibliarium.app.R
 import com.bibliarium.app.data.importer.ImportFailure
 import com.bibliarium.app.domain.Book
 import com.bibliarium.app.domain.BookFailure
+import com.bibliarium.app.ui.shelf.ShelfContent
 import com.bibliarium.app.ui.theme.BibliariumTheme
 
 /**
- * Первый этап: книги видны простым списком. Полка с корешками — следующий этап,
- * поэтому здесь сознательно нет ни ярусов, ни сетки.
+ * Библиотека: полка с корешками.
+ *
+ * Сам экран отвечает только за окружение — сообщения, диалоги и переходы.
+ * Всё, что видно человеку на полке, живёт в [ShelfContent].
  */
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     onAddBook: () -> Unit,
     onOpenBook: (String) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val books by viewModel.books.collectAsStateWithLifecycle()
@@ -64,12 +46,11 @@ fun LibraryScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
 
     val colors = BibliariumTheme.colors
-    val type = BibliariumTheme.type
-    val spacing = BibliariumTheme.spacing
-
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
     var explaining by remember { mutableStateOf<Book?>(null) }
+    var menuFor by remember { mutableStateOf<Book?>(null) }
 
     explaining?.let { book ->
         FailureDialog(
@@ -79,6 +60,25 @@ fun LibraryScreen(
                 explaining = null
             },
             onDismiss = { explaining = null },
+        )
+    }
+
+    menuFor?.let { book ->
+        BookMenu(
+            book = book,
+            onOpen = {
+                menuFor = null
+                openBook(book, onOpenBook) { explaining = it }
+            },
+            onFavorite = {
+                viewModel.toggleFavorite(book)
+                menuFor = null
+            },
+            onDelete = {
+                viewModel.delete(book.id)
+                menuFor = null
+            },
+            onDismiss = { menuFor = null },
         )
     }
 
@@ -103,199 +103,79 @@ fun LibraryScreen(
         containerColor = colors.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
+        ShelfContent(
+            books = books,
+            isImporting = isImporting,
+            onOpenBook = { book -> openBook(book, onOpenBook) { explaining = it } },
+            onMenu = { menuFor = it },
+            onAddBook = onAddBook,
+            onOpenSettings = onOpenSettings,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = spacing.margin),
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = spacing.lg, bottom = spacing.sm),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = type.displayLg,
-                    color = colors.text,
-                )
-                Text(
-                    text = stringResource(R.string.library_books_count, books.size),
-                    style = type.labelMd,
-                    color = colors.textSecondary,
-                )
-            }
-
-            HorizontalDivider(thickness = 1.dp, color = colors.line)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.md),
-            ) {
-                Button(
-                    onClick = onAddBook,
-                    enabled = !isImporting,
-                    shape = RoundedCornerShape(BibliariumTheme.shapes.button),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.text,
-                        contentColor = colors.surface,
-                    ),
-                ) {
-                    Text(text = stringResource(R.string.library_add_book), style = type.labelLg)
-                }
-
-                if (isImporting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = colors.accent,
-                    )
-                    Text(
-                        text = stringResource(R.string.library_importing),
-                        style = type.bodySm,
-                        color = colors.textSecondary,
-                    )
-                }
-            }
-
-            if (books.isEmpty()) {
-                EmptyShelf(modifier = Modifier.fillMaxSize())
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                ) {
-                    items(items = books, key = { it.id }) { book ->
-                        BookRow(
-                            book = book,
-                            onOpen = {
-                                if (book.isReadable) onOpenBook(book.id) else explaining = book
-                            },
-                            onDelete = { viewModel.delete(book.id) },
-                        )
-                        HorizontalDivider(thickness = 1.dp, color = colors.line)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyShelf(modifier: Modifier = Modifier) {
-    val colors = BibliariumTheme.colors
-    val type = BibliariumTheme.type
-    val spacing = BibliariumTheme.spacing
-
-    Column(
-        modifier = modifier.padding(top = spacing.xxl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacing.sm),
-    ) {
-        Text(
-            text = stringResource(R.string.library_empty_title),
-            style = type.headlineMd,
-            color = colors.text,
-        )
-        Text(
-            text = stringResource(R.string.library_empty_hint),
-            style = type.bodyMd,
-            color = colors.textSecondary,
+                .padding(innerPadding),
         )
     }
 }
 
+/** Книга с ошибкой не открывается молча: человеку показывают причину. */
+private fun openBook(book: Book, onOpenBook: (String) -> Unit, onExplain: (Book) -> Unit) {
+    if (book.isReadable) onOpenBook(book.id) else onExplain(book)
+}
+
+/** Меню книги по долгому нажатию на корешок. */
 @Composable
-private fun BookRow(
+private fun BookMenu(
     book: Book,
     onOpen: () -> Unit,
+    onFavorite: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
 ) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpen)
-            .padding(vertical = spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.md),
-    ) {
-        CoverThumbnail(book)
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = book.title,
-                style = type.headlineSm,
-                color = colors.text,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = book.author ?: stringResource(R.string.library_no_author),
-                style = type.bodySm,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = if (book.isReadable) {
-                    book.format.name
-                } else {
-                    stringResource(R.string.library_not_readable, book.format.name)
-                },
-                style = type.labelSm,
-                color = if (book.isReadable) colors.textSecondary else colors.accent,
-            )
-        }
-
-        TextButton(onClick = onDelete) {
-            Text(
-                text = stringResource(R.string.library_delete),
-                style = type.labelMd,
-                color = colors.accent,
-            )
-        }
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = colors.surface,
+        title = { Text(text = book.title, style = type.headlineSm, color = colors.text) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                MenuItem(stringResource(R.string.shelf_menu_open), onOpen)
+                MenuItem(
+                    stringResource(
+                        if (book.isFavorite) R.string.shelf_menu_unfavorite
+                        else R.string.shelf_menu_favorite,
+                    ),
+                    onFavorite,
+                )
+                MenuItem(stringResource(R.string.shelf_menu_delete), onDelete)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.padding(end = spacing.xs)) {
+                Text(
+                    text = stringResource(R.string.library_close),
+                    style = type.labelLg,
+                    color = colors.textSecondary,
+                )
+            }
+        },
+    )
 }
 
 @Composable
-private fun CoverThumbnail(book: Book) {
+private fun MenuItem(label: String, onClick: () -> Unit) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
-    val shape = RoundedCornerShape(BibliariumTheme.shapes.chip)
 
-    Box(
-        modifier = Modifier
-            .width(44.dp)
-            .height(64.dp)
-            .clip(shape)
-            .background(colors.surfaceRecessed)
-            .border(1.dp, colors.line, shape),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (book.coverPath != null) {
-            AsyncImage(
-                model = "file://" + book.coverPath,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Text(
-                text = book.title.take(1).uppercase(),
-                style = type.headlineSm,
-                color = colors.textSecondary,
-            )
-        }
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            style = type.bodyMd,
+            color = colors.text,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

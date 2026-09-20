@@ -8,6 +8,37 @@
     <string name="library_empty_title">Полка пока пуста</string>
     <string name="library_empty_hint">Добавьте книгу в формате EPUB, FB2 или FB2.ZIP — она останется в памяти телефона.</string>
     <string name="library_books_count">Книг: %1$d</string>
+
+    <!-- Полка: ярусы, фильтры, режимы. Раздел 6 ТЗ. -->
+    <string name="shelf_tier">Ярус %1$s</string>
+    <string name="shelf_all">Все %1$d</string>
+    <string name="shelf_back">Назад</string>
+    <string name="shelf_mode_spines">Корешки</string>
+    <string name="shelf_mode_grid">Сетка</string>
+    <string name="shelf_filter_all">Все</string>
+    <string name="shelf_filter_reading">Читаю</string>
+    <string name="shelf_filter_finished">Прочитано</string>
+    <string name="shelf_filter_favorite">Избранное</string>
+    <string name="shelf_group_status">По статусу</string>
+    <string name="shelf_group_author">По автору</string>
+    <string name="shelf_group_genre">По жанру</string>
+    <string name="shelf_status_reading">Читаю</string>
+    <string name="shelf_status_not_started">Не начато</string>
+    <string name="shelf_status_finished">Прочитано</string>
+    <string name="shelf_unknown_author">Без автора</string>
+    <string name="shelf_unknown_genre">Без жанра</string>
+    <string name="shelf_search_hint">Название или автор</string>
+    <string name="shelf_now_reading">Сейчас читаю</string>
+    <string name="shelf_continue">Продолжить чтение</string>
+    <string name="shelf_nothing_found">Ничего не нашлось</string>
+    <string name="shelf_menu_open">Открыть</string>
+    <string name="shelf_menu_favorite">В избранное</string>
+    <string name="shelf_menu_unfavorite">Убрать из избранного</string>
+    <string name="shelf_menu_delete">Удалить</string>
+    <string name="nav_library">Библиотека</string>
+    <string name="nav_search">Поиск</string>
+    <string name="nav_add">Добавить</string>
+    <string name="nav_more">Ещё</string>
     <string name="library_delete">Удалить</string>
     <string name="library_no_author">Автор не указан</string>
     <string name="library_importing">Добавляем книгу…</string>

@@ -69,6 +69,10 @@ class LocalBookStore(
         }
     }
 
+    override suspend fun setFavorite(id: String, favorite: Boolean) {
+        withContext(io) { bookDao.updateFavorite(id, favorite) }
+    }
+
     override suspend fun markOpened(id: String) {
         withContext(io) {
             val entity = bookDao.findById(id) ?: return@withContext

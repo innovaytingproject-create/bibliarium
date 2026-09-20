@@ -32,7 +32,6 @@ import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.pdf.PdfNavigatorFragment
-import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.ExperimentalReadiumApi
 
 /**
@@ -164,7 +163,7 @@ class ReaderActivity : AppCompatActivity() {
         )
         // Место обрыва показываем прямо на экране: «книга повреждена» без
         // подробностей не даёт ничего ни человеку, ни разбору потом.
-        return error.detail?.let { "$base\n\n$it" } ?: base
+        return error.detail?.let { getString(R.string.reader_error_detail, base, it) } ?: base
     }
 
     // --- навигатор ---------------------------------------------------------
@@ -218,22 +217,31 @@ class ReaderActivity : AppCompatActivity() {
      */
     private fun attachGestures(fragment: Fragment) {
         val overflowable = fragment as? OverflowableNavigator ?: return
-        overflowable.addInputListener(
-            DirectionalNavigationAdapter(
-                navigator = overflowable,
-                tapEdges = setOf(DirectionalNavigationAdapter.TapEdge.Horizontal),
-                minimumHorizontalEdgeSize = 0.0,
-                horizontalEdgeThresholdPercent = ONE_THIRD,
-                animatedTransition = true,
-            ),
-        )
 
-        (fragment as VisualNavigator).addInputListener(
+        overflowable.addInputListener(
             object : InputListener {
                 override fun onTap(event: TapEvent): Boolean {
-                    // Сюда долетает только центральная треть: края забрал адаптер.
-                    setPanelsVisible(!panelsVisible)
-                    return true
+                    val width = overflowable.publicationView.width.toDouble()
+                    if (width <= 0) return false
+
+                    val x = event.point.x
+                    val result = when {
+                        x < width / 3 -> overflowable.goLeft(animated = true)
+                        x > width * 2 / 3 -> overflowable.goRight(animated = true)
+                        else -> {
+                            setPanelsVisible(!panelsVisible)
+                            true
+                        }
+                    }
+
+                    // Следы жеста: если листание однажды снова перестанет
+                    // работать, искать причину будет по чему.
+                    android.util.Log.i(
+                        GESTURE_TAG,
+                        "тап x=$x ширина=$width прокрутка=${overflowable.overflow.value.scroll} " +
+                            "обработано=$result",
+                    )
+                    return result
                 }
             },
         )
@@ -352,7 +360,7 @@ class ReaderActivity : AppCompatActivity() {
     companion object {
         private const val EXTRA_BOOK_ID = "bookId"
         private const val TAG = "navigator"
-        private const val ONE_THIRD = 1.0 / 3
+        private const val GESTURE_TAG = "BibliariumReader"
         private const val ZOOM_RESET_DELAY_MS = 150L
         private const val MINUTES_IN_HOUR = 60
 

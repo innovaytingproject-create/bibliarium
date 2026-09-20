@@ -62,13 +62,30 @@ class ReaderTest {
         settledScreenshot("reader-epub-open")
     }
 
+    /**
+     * У PDF страница рисуется картинкой, и прочитать её текст с экрана нельзя.
+     * Поэтому смотрим на то, что видно человеку вокруг: книга открылась,
+     * ошибки нет, панели на месте, прогресс посчитан.
+     */
     @Test
-    fun openedPdfShowsItsPage() {
+    fun openedPdfIsReadyToRead() {
         openReader(importAsset("sample.pdf"))
 
-        assertTrue(
-            "Страница PDF не появилась на экране",
-            device.wait(Until.hasObject(By.textContains("Page 1")), OPEN_TIMEOUT),
+        assertNotNull(
+            "PDF не открылся: панели не появились",
+            device.wait(Until.findObject(By.text("Назад")), OPEN_TIMEOUT),
+        )
+        assertNull(
+            "PDF открылся с ошибкой",
+            device.findObject(By.textContains("Не удалось открыть")),
+        )
+        assertNull(
+            "Надпись загрузки осталась поверх PDF",
+            device.findObject(By.textContains("Открываем книгу")),
+        )
+        assertNotNull(
+            "Прогресс по PDF не показан",
+            device.findObject(By.textContains("%")),
         )
         settledScreenshot("reader-pdf-open")
     }
@@ -178,7 +195,7 @@ class ReaderTest {
         // Место обрыва должно быть на экране, а не только в логе.
         assertNotNull(
             "Причина показана без подробностей — чинить такое нечем",
-            device.findObject(By.textContains("движок не разобрал")),
+            device.findObject(By.textContains("Подробности:")),
         )
         settledScreenshot("reader-broken")
     }

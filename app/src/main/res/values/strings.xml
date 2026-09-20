@@ -118,6 +118,7 @@
     <string name="reader_fit_width">По ширине</string>
     <string name="reader_fit_height">По высоте</string>
 
+    <string name="reader_error_detail">%1$s\n\nПодробности: %2$s</string>
     <string name="reader_error_missing">Файл книги не найден. Возможно, его удалили из памяти телефона.</string>
     <string name="reader_error_unreadable">Не удалось открыть книгу — файл повреждён.</string>
     <string name="reader_error_unsupported">Этот формат пока не открывается. FB2 заработает после конвертера.</string>

@@ -61,7 +61,15 @@ jobs:
           arch: x86_64
           force-avd-creation: true
           emulator-boot-timeout: 1200
-          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # На API 34 эмулятор исчезал целиком посреди отрисовки Compose:
+          # ни падения приложения, ни исключения, место обрыва переезжало
+          # от прогона к прогону (пробы в androidTest/.../probe). Общее —
+          # отрисовка через хостовый путь swiftshader_indirect. Здесь он
+          # заменён на гостевую отрисовку; API 30 остаётся как был, там
+          # всё стабильно и оттуда берутся замеры кадров.
+          emulator-options: >-
+            -no-snapshot -no-window -noaudio -no-boot-anim -camera-back none
+            ${{ matrix.api-level == 34 && '-gpu guest' || '-gpu swiftshader_indirect' }}
           disable-animations: true
           script: bash .github/scripts/run-instrumented.sh ${{ matrix.api-level }}
 

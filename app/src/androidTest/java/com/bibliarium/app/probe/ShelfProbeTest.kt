@@ -66,13 +66,27 @@ class ShelfProbeTest {
             }
         }
 
+        // Часть первая: только рисование. Дерево доступности не трогаем вовсе —
+        // прошлый прогон показал, что место смерти переезжает от прогона
+        // к прогону, значит виноват не конкретный элемент, а что-то общее.
         for (step in 1..LAST_STAGE) {
-            Log.i(TAG, "стадия $step: ${NAMES[step - 1]}")
+            Log.i(TAG, "рисование, стадия $step: ${NAMES[step - 1]}")
             compose.runOnUiThread { stage = step }
             compose.waitForIdle()
             Thread.sleep(SETTLE_MS)
+            Log.i(TAG, "рисование, стадия $step: пережили")
+        }
+        Log.i(TAG, "рисование пройдено целиком")
+
+        // Часть вторая: экран стоит на месте, а UiAutomator раз за разом
+        // обходит дерево доступности — ровно то, что делают проверки.
+        compose.runOnUiThread { stage = STAGE_SHELF }
+        compose.waitForIdle()
+        for (attempt in 1..TREE_WALKS) {
+            Log.i(TAG, "обход дерева $attempt: начали")
             val seen = device.findObject(By.descContains("Книга пробы")) != null
-            Log.i(TAG, "стадия $step: пережили, корешок в дереве=$seen")
+            Log.i(TAG, "обход дерева $attempt: пережили, корешок видно=$seen")
+            Thread.sleep(WALK_PAUSE_MS)
         }
 
         Log.i(TAG, "проба пройдена целиком")
@@ -277,5 +291,7 @@ class ShelfProbeTest {
         const val AUTHORS = 3
         const val BOARD = 12
         const val SETTLE_MS = 700L
+        const val TREE_WALKS = 10
+        const val WALK_PAUSE_MS = 300L
     }
 }

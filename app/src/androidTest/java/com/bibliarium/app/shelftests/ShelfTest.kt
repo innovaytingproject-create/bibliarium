@@ -185,8 +185,8 @@ class ShelfTest {
         val report = Shell.run("dumpsys gfxinfo ${Shell.PACKAGE}")
         TestArtifacts.note("shelf-gfxinfo-$what", report.take(GFX_REPORT_LIMIT))
 
-        val total = report.number("Total frames rendered: (\d+)")
-        val janky = report.number("Janky frames: (\d+)")
+        val total = report.number("Total frames rendered: (\\d+)")
+        val janky = report.number("Janky frames: (\\d+)")
         assertTrue(
             "Кадры при прокрутке ($what) не рисовались вовсе — двигать было нечего?",
             total > MIN_FRAMES,

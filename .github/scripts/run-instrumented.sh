@@ -47,9 +47,14 @@ run_pass() {
   # через внешнюю память молча не срабатывала.
   local shots="$OUT/$name/screenshots"
   mkdir -p "$shots"
-  for f in $(adb exec-out run-as "$PKG" ls files/test-artifacts 2>/dev/null); do
-    adb exec-out run-as "$PKG" cat "files/test-artifacts/$f" > "$shots/$f" 2>/dev/null || true
-  done
+  if adb exec-out run-as "$PKG" test -d files/test-artifacts 2>/dev/null; then
+    for f in $(adb exec-out run-as "$PKG" ls files/test-artifacts 2>/dev/null); do
+      # Если ls всё-таки что-то сказал вместо имён, такие строки пропускаем:
+      # иначе в артефакты уезжает файл с именем вроде "ls:" и выгрузка падает.
+      case "$f" in *:* | *" "* | "") continue ;; esac
+      adb exec-out run-as "$PKG" cat "files/test-artifacts/$f" > "$shots/$f" 2>/dev/null || true
+    done
+  fi
   adb exec-out run-as "$PKG" rm -rf files/test-artifacts > /dev/null 2>&1 || true
 
   echo "--- $name ---"

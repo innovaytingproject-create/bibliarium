@@ -48,7 +48,13 @@ class Fb2ToEpubConverter {
 
             if (titles.isEmpty()) {
                 target.delete()
-                return Result.failure(Fb2ConversionException(Fb2ConversionFailure.NO_CONTENT))
+                return Result.failure(
+                    Fb2ConversionException(
+                        failure = Fb2ConversionFailure.NO_CONTENT,
+                        detail = "оборван=${state.truncated}, картинок=${state.imageCount}, " +
+                            "заголовок=${state.info().title}",
+                    ),
+                )
             }
 
             Result.success(
@@ -63,7 +69,13 @@ class Fb2ToEpubConverter {
         } catch (e: Exception) {
             builder?.close()
             target.delete()
-            Result.failure(Fb2ConversionException(Fb2ConversionFailure.UNREADABLE, e))
+            Result.failure(
+                Fb2ConversionException(
+                    failure = Fb2ConversionFailure.UNREADABLE,
+                    detail = e.message,
+                    cause = e,
+                ),
+            )
         }
     }
 

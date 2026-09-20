@@ -28,6 +28,22 @@ class AmpersandSanitizingStream(source: InputStream) : FilterInputStream(source)
         return if (pending.isEmpty()) -1 else pending.removeFirst()
     }
 
+    /**
+     * Откат по потоку не поддерживается.
+     *
+     * FilterInputStream по умолчанию передаёт mark и reset вниз, а там свой
+     * буфер — наше же состояние подстановки при этом не откатывается, и поток
+     * разъезжается. Парсер, определяя кодировку по прологу, как раз может
+     * попробовать откатиться, поэтому честно отвечаем, что так нельзя.
+     */
+    override fun markSupported(): Boolean = false
+
+    override fun mark(readlimit: Int) = Unit
+
+    override fun reset() {
+        throw java.io.IOException("Откат по потоку не поддерживается")
+    }
+
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
         var written = 0

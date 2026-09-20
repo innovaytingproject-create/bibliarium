@@ -44,5 +44,6 @@ enum class Fb2ConversionFailure {
 
 class Fb2ConversionException(
     val failure: Fb2ConversionFailure,
+    val detail: String? = null,
     cause: Throwable? = null,
-) : Exception(failure.name, cause)
+) : Exception(listOfNotNull(failure.name, detail).joinToString(": "), cause)

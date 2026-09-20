@@ -14,6 +14,9 @@ internal class ConversionState {
     var zone: Zone = Zone.NONE
     var sectionDepth: Int = 0
     var truncated: Boolean = false
+
+    /** На чём оборвался разбор. Нужно, чтобы не гадать по одному слову в логе. */
+    var parseError: String? = null
     var imageCount: Int = 0
     var noteCount: Int = 0
 
@@ -185,7 +188,7 @@ internal class ConversionState {
                 }
             }
 
-            else -> openTag(name)?.let { epub.writeRaw(it) }
+            else -> if (!inTitle) openTag(name)?.let { epub.writeRaw(it) }
         }
     }
 
@@ -217,7 +220,7 @@ internal class ConversionState {
 
             "a" -> epub.writeRaw("</a>")
 
-            else -> closeTag(name)?.let { epub.writeRaw(it) }
+            else -> if (!inTitle) closeTag(name)?.let { epub.writeRaw(it) }
         }
     }
 

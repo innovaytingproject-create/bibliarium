@@ -52,7 +52,7 @@ class Fb2ToEpubConverter {
                     Fb2ConversionException(
                         failure = Fb2ConversionFailure.NO_CONTENT,
                         detail = "оборван=${state.truncated}, картинок=${state.imageCount}, " +
-                            "заголовок=${state.info().title}",
+                            "заголовок=${state.info().title}, ошибка=${state.parseError}",
                     ),
                 )
             }
@@ -106,8 +106,14 @@ class Fb2ToEpubConverter {
             }
             return true
         } catch (e: XmlPullParserException) {
+            state.parseError = "XML: ${e.message}"
             return false
         } catch (e: java.io.IOException) {
+            state.parseError = "IO: ${e.message}"
+            return false
+        } catch (e: RuntimeException) {
+            // Парсер на битом документе умеет бросать и не проверяемые исключения.
+            state.parseError = "${e.javaClass.simpleName}: ${e.message}"
             return false
         }
     }

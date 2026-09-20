@@ -90,7 +90,13 @@ class EpubBuilder(output: OutputStream) : AutoCloseable {
         notesHref = href
     }
 
+    /**
+     * Пишет в текущую главу. Вне главы молчит: между </body> и первой секцией
+     * в FB2 лежат переводы строк, и раньше они летели в архив, где ещё не было
+     * ни одной открытой записи, — весь разбор на этом и обрывался.
+     */
     fun writeRaw(text: String) {
+        if (openChapter == null) return
         zip.write(text.toByteArray(Charsets.UTF_8))
     }
 

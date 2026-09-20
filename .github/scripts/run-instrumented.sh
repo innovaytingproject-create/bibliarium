@@ -73,6 +73,12 @@ run_pass() {
   return 0
 }
 
+# --- Проба: какая операция рисования убивает эмулятор API 34. Идёт самой
+# первой, потому что полка эмулятор роняет, а забрать с погибшей машины
+# нечего — переживает только logcat.
+run_pass "probe" "com.bibliarium.app.probe"
+STATUS_PROBE=$?
+
 # --- Прогон 0: полка. Стоит первой намеренно: на API 34 эмулятор исчезал
 # именно на ней, и надо отделить «виновата полка» от «эмулятор к этому
 # моменту уже на исходе».
@@ -136,7 +142,7 @@ kill "$LOGCAT_PID" 2>/dev/null || true
 
 echo "=== содержимое $OUT"
 find "$OUT" -type f | head -50
-echo "=== статусы: без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, fb2=$STATUS_FB2, чтение=$STATUS_READER, полка=$STATUS_SHELF"
+echo "=== статусы: проба=$STATUS_PROBE, без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, fb2=$STATUS_FB2, чтение=$STATUS_READER, полка=$STATUS_SHELF"
 
 if [ "$STATUS_NO_ACCESS" -ne 0 ]; then exit "$STATUS_NO_ACCESS"; fi
 if [ "$STATUS_FULL_ACCESS" -ne 0 ]; then exit "$STATUS_FULL_ACCESS"; fi

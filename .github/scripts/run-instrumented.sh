@@ -40,7 +40,11 @@ run_pass() {
   local log="$OUT/$name.txt"
 
   adb shell am force-stop "$PKG" || true
+  # Память эмулятора до и после пачки: на API 34 эмулятор пропадал целиком,
+  # без единой строчки в логе, и понять, чем он кончился, было не по чему.
+  adb shell cat /proc/meminfo > "$OUT/$name-mem-before.txt" 2>&1 || true
   adb shell am instrument -w -e package "$package" "$RUNNER" > "$log" 2>&1
+  adb shell cat /proc/meminfo > "$OUT/$name-mem-after.txt" 2>&1 || true
 
   # Артефакты лежат во внутреннем каталоге приложения и достаются через run-as:
   # на Android 11 shell не читает /sdcard/Android/data, и на API 30 выгрузка
@@ -68,6 +72,12 @@ run_pass() {
   fi
   return 0
 }
+
+# --- Прогон 0: полка. Стоит первой намеренно: на API 34 эмулятор исчезал
+# именно на ней, и надо отделить «виновата полка» от «эмулятор к этому
+# моменту уже на исходе».
+run_pass "shelf" "com.bibliarium.app.shelftests"
+STATUS_SHELF=$?
 
 # --- Прогон 1: разрешения нет ---
 adb shell am force-stop "$PKG" || true
@@ -118,10 +128,6 @@ STATUS_FB2=$?
 # из androidTest/assets и импортируются штатным путём во внутреннюю память.
 run_pass "reader" "com.bibliarium.app.readertests"
 STATUS_READER=$?
-
-# --- Прогон 5: полка. Пятьсот книг и прокрутка — раздел 7 ТЗ.
-run_pass "shelf" "com.bibliarium.app.shelftests"
-STATUS_SHELF=$?
 
 adb shell appops get "$PKG" MANAGE_EXTERNAL_STORAGE > "$OUT/appops-after.txt" 2>&1 || true
 

@@ -1,6 +1,7 @@
 package com.bibliarium.app.ui.library
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +52,7 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     onAddBook: () -> Unit,
+    onOpenBook: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val books by viewModel.books.collectAsStateWithLifecycle()
@@ -149,7 +151,11 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(spacing.xs),
                 ) {
                     items(items = books, key = { it.id }) { book ->
-                        BookRow(book = book, onDelete = { viewModel.delete(book.id) })
+                        BookRow(
+                            book = book,
+                            onOpen = { onOpenBook(book.id) },
+                            onDelete = { viewModel.delete(book.id) },
+                        )
                         HorizontalDivider(thickness = 1.dp, color = colors.line)
                     }
                 }
@@ -185,6 +191,7 @@ private fun EmptyShelf(modifier: Modifier = Modifier) {
 @Composable
 private fun BookRow(
     book: Book,
+    onOpen: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -195,6 +202,7 @@ private fun BookRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onOpen)
             .padding(vertical = spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.md),

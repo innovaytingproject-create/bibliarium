@@ -16,6 +16,12 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // PdfiumAndroid приносит нативные библиотеки. Без фильтра в APK едут
+        // все архитектуры сразу, включая заведомо ненужные.
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
     }
 
     compileOptions {
@@ -73,6 +79,13 @@ dependencies {
     // Движок чтения. Свой парсер EPUB не пишем.
     implementation(libs.readium.shared)
     implementation(libs.readium.streamer)
+    implementation(libs.readium.navigator)
+    // PDF в Readium умеет только через адаптер: своего движка у него нет.
+    implementation(libs.readium.adapter.pdfium.document)
+    implementation(libs.readium.adapter.pdfium.navigator)
+
+    // Навигаторы Readium — фрагменты, и они разворачивают виджеты AppCompat.
+    implementation(libs.androidx.appcompat)
 
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.graphics)

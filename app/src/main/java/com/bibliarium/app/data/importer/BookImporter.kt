@@ -76,7 +76,8 @@ class BookImporter(
             }
 
             val metadata = when (kind.format) {
-                BookFormat.EPUB -> readWithReadium(target)
+                // И EPUB, и PDF открывает Readium — своих парсеров нет.
+                BookFormat.EPUB, BookFormat.PDF -> readWithReadium(target)
                     ?: throw ImportException(ImportFailure.PARSE_FAILED)
                 BookFormat.FB2 -> readFb2(target)
                 else -> throw ImportException(ImportFailure.UNSUPPORTED_FORMAT)

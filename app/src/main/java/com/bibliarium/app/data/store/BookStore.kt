@@ -26,4 +26,10 @@ interface BookStore {
      * дозаполняет отпечатки записей, созданных до их появления.
      */
     suspend fun fingerprints(): Map<Long, Set<String>>
+
+    /** Позиция чтения сохраняется при каждом перелистывании. */
+    suspend fun saveProgress(id: String, progress: Float, locator: String?)
+
+    /** Отмечает книгу открытой — по этому полю строится карточка «сейчас читаю». */
+    suspend fun markOpened(id: String)
 }

@@ -19,6 +19,7 @@ desugar = "2.1.5"
 
 readium = "3.3.0"
 
+androidx-appcompat = "1.7.1"
 androidx-core = "1.18.0"
 androidx-activity = "1.13.0"
 androidx-lifecycle = "2.10.0"
@@ -45,6 +46,10 @@ desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref 
 readium-shared = { module = "org.readium.kotlin-toolkit:readium-shared", version.ref = "readium" }
 readium-streamer = { module = "org.readium.kotlin-toolkit:readium-streamer", version.ref = "readium" }
 readium-navigator = { module = "org.readium.kotlin-toolkit:readium-navigator", version.ref = "readium" }
+readium-adapter-pdfium-document = { module = "org.readium.kotlin-toolkit:readium-adapter-pdfium-document", version.ref = "readium" }
+readium-adapter-pdfium-navigator = { module = "org.readium.kotlin-toolkit:readium-adapter-pdfium-navigator", version.ref = "readium" }
+
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }

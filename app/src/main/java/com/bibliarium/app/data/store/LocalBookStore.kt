@@ -6,6 +6,7 @@ import com.bibliarium.app.data.db.toDomain
 import com.bibliarium.app.data.db.toEntity
 import com.bibliarium.app.data.importer.BookImporter
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.ReadingStatus
 import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +52,39 @@ class LocalBookStore(
         bookDao.findById(id)?.toDomain()
     }
 
+    override suspend fun saveProgress(id: String, progress: Float, locator: String?) {
+        withContext(io) {
+            val status = when {
+                progress >= FINISHED_THRESHOLD -> ReadingStatus.FINISHED
+                else -> ReadingStatus.READING
+            }
+            bookDao.updateProgress(
+                id = id,
+                progress = progress.coerceIn(0f, 1f),
+                locator = locator,
+                status = status.name,
+                lastOpenedAt = System.currentTimeMillis(),
+            )
+        }
+    }
+
+    override suspend fun markOpened(id: String) {
+        withContext(io) {
+            val entity = bookDao.findById(id) ?: return@withContext
+            bookDao.updateProgress(
+                id = id,
+                progress = entity.progress,
+                locator = entity.locator,
+                status = if (entity.status == ReadingStatus.NOT_STARTED.name) {
+                    ReadingStatus.READING.name
+                } else {
+                    entity.status
+                },
+                lastOpenedAt = System.currentTimeMillis(),
+            )
+        }
+    }
+
     override suspend fun fingerprints(): Map<Long, Set<String>> = withContext(io) {
         // Книги, добавленные до появления отпечатков, досчитываем по сохранённому файлу.
         // Для обычных EPUB и FB2 он побайтово равен исходному, так что отпечаток совпадёт.
@@ -64,5 +98,10 @@ class LocalBookStore(
         bookDao.fingerprints()
             .groupBy({ it.fileSize }, { it.headHash })
             .mapValues { (_, hashes) -> hashes.toSet() }
+    }
+
+    private companion object {
+        /** Ближе к концу докручивать нечего — считаем книгу прочитанной. */
+        const val FINISHED_THRESHOLD = 0.99f
     }
 }

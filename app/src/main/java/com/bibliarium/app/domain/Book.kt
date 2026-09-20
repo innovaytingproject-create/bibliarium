@@ -34,8 +34,8 @@ enum class ReadingStatus {
 }
 
 /**
- * PDF и DJVU в первой версии не импортируются, но формат в модели уже есть:
- * экран чтения будет выбирать движок по нему (раздел 11 ТЗ).
+ * DJVU пока не импортируется, но формат в модели уже есть: экран чтения
+ * выбирает движок по нему.
  */
 enum class BookFormat(val extension: String) {
     EPUB("epub"),
@@ -46,7 +46,7 @@ enum class BookFormat(val extension: String) {
 
     /** Поддерживается ли формат импортом и чтением в текущей версии. */
     val isSupported: Boolean
-        get() = this == EPUB || this == FB2
+        get() = this == EPUB || this == FB2 || this == PDF
 
     companion object {
         fun fromExtension(extension: String): BookFormat? =

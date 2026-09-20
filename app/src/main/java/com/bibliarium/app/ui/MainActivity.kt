@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bibliarium.app.AppContainer
 import com.bibliarium.app.appContainer
+import com.bibliarium.app.reader.ReaderActivity
 import com.bibliarium.app.ui.add.AddBookScreen
 import com.bibliarium.app.ui.library.LibraryScreen
 import com.bibliarium.app.ui.library.LibraryViewModel
@@ -68,10 +69,16 @@ private fun BibliariumApp(container: AppContainer) {
     }
 
     when (screen) {
-        Screen.LIBRARY -> LibraryScreen(
-            viewModel = libraryViewModel,
-            onAddBook = { screen = Screen.ADD_BOOK },
-        )
+        Screen.LIBRARY -> {
+            val context = LocalContext.current
+            LibraryScreen(
+                viewModel = libraryViewModel,
+                onAddBook = { screen = Screen.ADD_BOOK },
+                onOpenBook = { bookId ->
+                    context.startActivity(ReaderActivity.intent(context, bookId))
+                },
+            )
+        }
 
         Screen.ADD_BOOK -> AddBookScreen(
             onScan = { screen = Screen.SCAN },

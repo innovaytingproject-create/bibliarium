@@ -10,11 +10,14 @@ import com.bibliarium.app.data.access.FileAccessProvider
 import com.bibliarium.app.data.scan.BookScanner
 import com.bibliarium.app.data.scan.ScanMetadataReader
 import com.bibliarium.app.data.settings.AppSettings
+import com.bibliarium.app.data.settings.ReaderSettingsStore
 import com.bibliarium.app.data.store.BookStore
+import com.bibliarium.app.reader.ReaderContentOpener
 import com.bibliarium.app.data.store.HighlightStore
 import com.bibliarium.app.data.store.LocalBookStore
 import com.bibliarium.app.data.store.LocalHighlightStore
 import java.io.File
+import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.http.DefaultHttpClient
 import org.readium.r2.streamer.PublicationOpener
@@ -44,17 +47,23 @@ class AppContainer(context: Context) {
         AssetRetriever(appContext.contentResolver, httpClient)
     }
 
+    val pdfDocumentFactory: PdfiumDocumentFactory by lazy { PdfiumDocumentFactory(appContext) }
+
     private val publicationParser by lazy {
         DefaultPublicationParser(
             context = appContext,
             httpClient = httpClient,
             assetRetriever = assetRetriever,
-            pdfFactory = null,
+            // Без фабрики PDF Readium вообще не разбирает PDF: parser просто
+            // не создаётся. Это адаптер самого Readium, не сторонний движок.
+            pdfFactory = pdfDocumentFactory,
         )
     }
 
-    /** Понадобится экрану чтения на третьем этапе. */
     val publicationOpener: PublicationOpener by lazy { PublicationOpener(publicationParser) }
+
+    /** Нужен экрану чтения, чтобы открыть книгу по её файлу. */
+    val assetRetrieverForReading: AssetRetriever get() = assetRetriever
 
     private val bookImporter by lazy {
         BookImporter(
@@ -87,4 +96,10 @@ class AppContainer(context: Context) {
     }
 
     val batchImporter: BatchImporter by lazy { BatchImporter(appContext, importQueueDao) }
+
+    val readerSettings: ReaderSettingsStore by lazy { ReaderSettingsStore(appContext) }
+
+    val readerContentOpener: ReaderContentOpener by lazy {
+        ReaderContentOpener(appContext, assetRetriever, publicationOpener)
+    }
 }

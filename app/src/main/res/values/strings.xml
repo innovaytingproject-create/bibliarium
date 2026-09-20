@@ -81,6 +81,33 @@
     <string name="settings_pick_cancelled">Папка не добавлена. Учтите: Android не даёт выбрать корень памяти и папку Download — возьмите вложенную папку или включите полный доступ.</string>
     <string name="settings_restrictions">С Android 11 система запрещает выбирать через выбор папки корень внутренней памяти, корни SD-карт и папку Download. Папки Android/data и Android/obb закрыты в обоих режимах — это ограничение системы. Папка Android/media доступна, книги из Telegram лежат там.</string>
 
+    <string name="reader_loading">Открываем книгу…</string>
+    <string name="reader_close">Закрыть</string>
+    <string name="reader_settings">Настройки</string>
+    <string name="reader_progress">%1$d %%</string>
+    <string name="reader_progress_minutes">%1$d %% · осталось %2$d мин</string>
+    <string name="reader_progress_hours">%1$d %% · осталось %2$d ч</string>
+
+    <string name="reader_font">Шрифт</string>
+    <string name="reader_font_literata">Literata</string>
+    <string name="reader_font_lora">Lora</string>
+    <string name="reader_font_system">Системный</string>
+    <string name="reader_font_size">Размер</string>
+    <string name="reader_margins">Поля</string>
+    <string name="reader_line_height">Межстрочный</string>
+    <string name="reader_theme">Тема</string>
+    <string name="reader_theme_light">Светлая</string>
+    <string name="reader_theme_sepia">Сепия</string>
+    <string name="reader_theme_dark">Тёмная</string>
+    <string name="reader_theme_night">Ночная</string>
+    <string name="reader_fit">Вписать</string>
+    <string name="reader_fit_width">По ширине</string>
+    <string name="reader_fit_height">По высоте</string>
+
+    <string name="reader_error_missing">Файл книги не найден. Возможно, его удалили из памяти телефона.</string>
+    <string name="reader_error_unreadable">Не удалось открыть книгу — файл повреждён.</string>
+    <string name="reader_error_unsupported">Этот формат пока не открывается. FB2 заработает после конвертера.</string>
+
     <string name="size_bytes">%1$d Б</string>
     <string name="size_kb">%1$s КБ</string>
     <string name="size_mb">%1$s МБ</string>

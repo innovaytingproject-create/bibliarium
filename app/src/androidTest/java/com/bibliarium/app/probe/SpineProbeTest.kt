@@ -206,7 +206,7 @@ class SpineProbeTest {
         const val STAGE_SHELF_EMPTY = 8
         const val STAGE_SHELF_FEW = 9
         const val STAGE_SHELF_MANY = 10
-        const val LAST_STAGE = 10
+        const val LAST_STAGE = STAGE_SHELF_EMPTY
 
         val STAGE_NAMES = listOf(
             "заливку",

@@ -57,6 +57,8 @@ class LocalBookStore(
         withContext(io) {
             val status = when {
                 progress >= FINISHED_THRESHOLD -> ReadingStatus.FINISHED
+                // Ноль — это книга, которую открыли и ничего не прочли.
+                progress <= 0f -> ReadingStatus.NOT_STARTED
                 else -> ReadingStatus.READING
             }
             bookDao.updateProgress(
@@ -73,6 +75,12 @@ class LocalBookStore(
         withContext(io) { bookDao.updateFavorite(id, favorite) }
     }
 
+    /**
+     * Открыть книгу — ещё не значит начать её читать. Статус остаётся прежним,
+     * меняется только время последнего открытия: по нему строится карточка
+     * «сейчас читаю». В ярус «Читаю» книга попадает, когда в ней что-то
+     * прочитано, то есть из [saveProgress].
+     */
     override suspend fun markOpened(id: String) {
         withContext(io) {
             val entity = bookDao.findById(id) ?: return@withContext
@@ -80,11 +88,7 @@ class LocalBookStore(
                 id = id,
                 progress = entity.progress,
                 locator = entity.locator,
-                status = if (entity.status == ReadingStatus.NOT_STARTED.name) {
-                    ReadingStatus.READING.name
-                } else {
-                    entity.status
-                },
+                status = entity.status,
                 lastOpenedAt = System.currentTimeMillis(),
             )
         }

@@ -9,7 +9,7 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.services.positions
+import org.readium.r2.shared.publication.services.positionsByReadingOrder
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.streamer.PublicationOpener
@@ -20,6 +20,9 @@ enum class ReaderEngine {
     EPUB,
     PDF,
 }
+
+/** Где начинается и где заканчивается глава в книге целиком, 0..1. */
+data class ResourceSpan(val start: Double, val end: Double)
 
 /** Открытая книга: публикация Readium плюс всё, что нужно экрану. */
 class ReaderContent(
@@ -32,7 +35,31 @@ class ReaderContent(
     val totalPositions: Int,
     /** Оглавление: что показать в списке глав и куда по нему прыгать. */
     val tableOfContents: List<TocEntry>,
+    /** Границы каждой главы в книге; по ним считается прогресс чтения. */
+    private val spans: Map<String, ResourceSpan> = emptyMap(),
 ) {
+    /**
+     * Доля прочитанного от всей книги.
+     *
+     * Брать `totalProgression` из локатора напрямую нельзя: он меняется
+     * только при переходе на следующую позицию Readium, а внутри главы стоит
+     * на месте. У книги из шести глав это означало ноль на всё чтение первой
+     * главы — прогресс не двигался вовсе.
+     *
+     * Поэтому берётся место главы в книге и внутри него — доля, пройденная
+     * по самой главе. Границы глав считает Readium, так что длинная глава
+     * весит больше короткой.
+     */
+    fun progressOf(locator: Locator): Float {
+        val within = locator.locations.progression ?: 0.0
+        val span = spans[locator.href.toString()]
+        val value = when {
+            span != null -> span.start + (span.end - span.start) * within
+            else -> locator.locations.totalProgression ?: within
+        }
+        return value.toFloat().coerceIn(0f, 1f)
+    }
+
     fun close() {
         runCatching { publication.close() }
     }
@@ -125,7 +152,9 @@ class ReaderContentOpener(
                 )
             }
 
-        val positions = runCatching { publication.positions() }.getOrDefault(emptyList())
+        val byResource = runCatching { publication.positionsByReadingOrder() }
+            .getOrDefault(emptyList())
+        val positions = byResource.flatten()
         val toc = runCatching { buildToc(publication, engine) }.getOrDefault(emptyList())
 
         return Result.success(
@@ -136,6 +165,7 @@ class ReaderContentOpener(
                 initialLocator = book.locator?.let(::parseLocator),
                 totalPositions = positions.size,
                 tableOfContents = toc,
+                spans = spansOf(byResource),
             ),
         )
     }
@@ -185,6 +215,26 @@ class ReaderContentOpener(
         }
 
     private data class FlatLink(val link: Link, val indent: String)
+
+    /**
+     * Границы глав в книге целиком.
+     *
+     * Начало главы — доля, на которой стоит её первая позиция; конец — начало
+     * следующей главы, а у последней это единица.
+     */
+    private fun spansOf(byResource: List<List<Locator>>): Map<String, ResourceSpan> {
+        val result = mutableMapOf<String, ResourceSpan>()
+        byResource.forEachIndexed { index, positions ->
+            val first = positions.firstOrNull() ?: return@forEachIndexed
+            val start = first.locations.totalProgression ?: return@forEachIndexed
+            val next = byResource.drop(index + 1)
+                .firstNotNullOfOrNull { it.firstOrNull() }
+                ?.locations
+                ?.totalProgression
+            result[first.href.toString()] = ResourceSpan(start, next ?: 1.0)
+        }
+        return result
+    }
 
     /** Разворачивает цепочку причин Readium в одну строку. */
     private fun describe(error: org.readium.r2.shared.util.Error): String {

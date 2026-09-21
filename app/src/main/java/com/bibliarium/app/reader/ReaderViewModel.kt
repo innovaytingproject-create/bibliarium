@@ -111,9 +111,7 @@ class ReaderViewModel(
         val id = bookId ?: return
         val content = (_state.value as? ReaderState.Ready)?.content ?: return
 
-        val progress = (locator.locations.totalProgression ?: locator.locations.progression ?: 0.0)
-            .toFloat()
-            .coerceIn(0f, 1f)
+        val progress = content.progressOf(locator)
 
         _position.value = positionOf(
             progress = progress,

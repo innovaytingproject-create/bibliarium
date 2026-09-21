@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -316,6 +317,7 @@ private fun FilterRow(filter: ShelfFilter, onFilterChange: (ShelfFilter) -> Unit
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
     val spacing = BibliariumTheme.spacing
+    val accent = colors.accent
 
     // Строка прокручивается вбок: «Избранное» иначе переносится по слогам
     // и выглядит как поломка вёрстки.
@@ -328,29 +330,28 @@ private fun FilterRow(filter: ShelfFilter, onFilterChange: (ShelfFilter) -> Unit
     ) {
         ShelfFilter.entries.forEach { value ->
             val active = value == filter
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(end = spacing.xs),
-            ) {
-                TextButton(
-                    onClick = { onFilterChange(value) },
-                    contentPadding = PaddingValues(horizontal = spacing.sm),
-                ) {
-                    Text(
-                        text = stringResource(value.labelRes()),
-                        style = type.labelMd,
-                        color = if (active) colors.text else colors.textSecondary,
-                        maxLines = 1,
-                        softWrap = false,
+            TextButton(
+                onClick = { onFilterChange(value) },
+                contentPadding = PaddingValues(horizontal = spacing.sm),
+                // Подчёркивание рисуется под самой кнопкой, а не отдельной
+                // полоской рядом: строка фильтров прокручивается вбок, ширина
+                // в ней не ограничена, и растянутая полоска выходила нулевой.
+                modifier = Modifier.drawBehind {
+                    if (!active) return@drawBehind
+                    val thickness = UNDERLINE_HEIGHT.dp.toPx()
+                    drawRect(
+                        color = accent,
+                        topLeft = Offset(0f, size.height - thickness),
+                        size = Size(size.width, thickness),
                     )
-                }
-                // Активный фильтр подчёркнут акцентом — как на макете.
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = spacing.sm)
-                        .fillMaxWidth()
-                        .height(UNDERLINE_HEIGHT.dp)
-                        .background(if (active) colors.accent else Color.Transparent),
+                },
+            ) {
+                Text(
+                    text = stringResource(value.labelRes()),
+                    style = type.labelMd,
+                    color = if (active) colors.text else colors.textSecondary,
+                    maxLines = 1,
+                    softWrap = false,
                 )
             }
         }

@@ -292,7 +292,9 @@ private fun DrawScope.drawSpineText(
                 constraints = Constraints(maxWidth = along),
             )
         }
-        ?.takeIf { it.size.height + titleLayout.size.height + inset <= across }
+        // Влезает — значит рисуем. Запас в целый отступ выкидывал автора
+        // почти со всех корешков, кроме самых широких.
+        ?.takeIf { it.size.height + titleLayout.size.height <= across }
 
     val block = titleLayout.size.height +
         (authorLayout?.let { it.size.height + inset * AUTHOR_GAP } ?: 0f)

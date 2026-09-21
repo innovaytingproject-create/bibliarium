@@ -24,7 +24,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,7 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -98,6 +106,7 @@ fun ShelfContent(
 
     Column(modifier = modifier.fillMaxSize()) {
         ShelfHeader(
+            booksCount = books.size,
             mode = mode,
             onModeChange = { mode = it },
             grouping = grouping,
@@ -166,6 +175,7 @@ fun ShelfContent(
 
 @Composable
 private fun ShelfHeader(
+    booksCount: Int,
     mode: ShelfMode,
     onModeChange: (ShelfMode) -> Unit,
     grouping: ShelfGrouping,
@@ -182,33 +192,30 @@ private fun ShelfHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = spacing.lg, bottom = spacing.sm),
+                .padding(top = spacing.lg, bottom = spacing.xs),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.app_name),
                 style = type.displayLg,
                 color = colors.text,
             )
-            TextButton(
-                onClick = {
-                    onModeChange(
-                        if (mode == ShelfMode.SPINES) ShelfMode.GRID else ShelfMode.SPINES,
-                    )
-                },
-            ) {
-                Text(
-                    // Кнопка называет то, что откроется, а не то, что видно сейчас.
-                    text = stringResource(
-                        if (mode == ShelfMode.SPINES) R.string.shelf_mode_grid
-                        else R.string.shelf_mode_spines,
-                    ),
-                    style = type.labelMd,
-                    color = colors.accent,
-                )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Группировка ушла под значок: строкой вкладок она повторяла
+                // фильтры — «По статусу» и «Читаю/Прочитано» про одно и то же.
+                GroupingMenu(grouping = grouping, onGroupingChange = onGroupingChange)
+                ModeSwitch(mode = mode, onModeChange = onModeChange)
             }
         }
+
+        Text(
+            text = stringResource(R.string.library_books_count, booksCount),
+            style = type.labelSm,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(bottom = spacing.sm),
+        )
 
         if (searching) {
             OutlinedTextField(
@@ -227,57 +234,80 @@ private fun ShelfHeader(
                 },
             )
         }
-
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-        ) {
-            GroupingTab(
-                R.string.shelf_group_status,
-                ShelfGrouping.STATUS,
-                grouping,
-                onGroupingChange,
-            )
-            GroupingTab(
-                R.string.shelf_group_author,
-                ShelfGrouping.AUTHOR,
-                grouping,
-                onGroupingChange,
-            )
-            GroupingTab(
-                R.string.shelf_group_genre,
-                ShelfGrouping.GENRE,
-                grouping,
-                onGroupingChange,
-            )
-        }
-
-        HorizontalDivider(thickness = 1.dp, color = colors.line)
     }
 }
 
+/** Группировка ярусов: значок в шапке и список под ним. */
 @Composable
-private fun GroupingTab(
-    labelRes: Int,
-    value: ShelfGrouping,
-    current: ShelfGrouping,
-    onChange: (ShelfGrouping) -> Unit,
-) {
+private fun GroupingMenu(grouping: ShelfGrouping, onGroupingChange: (ShelfGrouping) -> Unit) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
+    var open by remember { mutableStateOf(false) }
 
-    TextButton(
-        onClick = { onChange(value) },
-        contentPadding = PaddingValues(horizontal = BibliariumTheme.spacing.sm),
-    ) {
-        Text(
-            text = stringResource(labelRes),
-            style = type.labelMd,
-            color = if (value == current) colors.text else colors.textSecondary,
-            maxLines = 1,
-            softWrap = false,
-        )
+    Box {
+        IconButton(onClick = { open = true }) {
+            ShelfIconImage(
+                icon = ShelfIcon.TUNE,
+                tint = colors.text,
+                modifier = Modifier.semantics {
+                    contentDescription = GROUPING_DESCRIPTION
+                },
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            ShelfGrouping.entries.forEach { value ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(value.labelRes()),
+                            style = type.bodyMd,
+                            color = if (value == grouping) colors.accent else colors.text,
+                        )
+                    },
+                    onClick = {
+                        onGroupingChange(value)
+                        open = false
+                    },
+                )
+            }
+        }
     }
+}
+
+/** Переключатель корешки/сетка — значком, как на макете. */
+@Composable
+private fun ModeSwitch(mode: ShelfMode, onModeChange: (ShelfMode) -> Unit) {
+    val colors = BibliariumTheme.colors
+    val shapes = BibliariumTheme.shapes
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(shapes.chip))
+            .background(colors.surfaceRecessed),
+    ) {
+        listOf(ShelfMode.SPINES to ShelfIcon.SPINES, ShelfMode.GRID to ShelfIcon.GRID)
+            .forEach { (value, icon) ->
+                IconButton(onClick = { onModeChange(value) }) {
+                    ShelfIconImage(
+                        icon = icon,
+                        tint = if (value == mode) colors.accent else colors.textSecondary,
+                        modifier = Modifier.semantics {
+                            contentDescription = if (value == ShelfMode.SPINES) {
+                                SPINES_DESCRIPTION
+                            } else {
+                                GRID_DESCRIPTION
+                            }
+                        },
+                    )
+                }
+            }
+    }
+}
+
+private fun ShelfGrouping.labelRes(): Int = when (this) {
+    ShelfGrouping.STATUS -> R.string.shelf_group_status
+    ShelfGrouping.AUTHOR -> R.string.shelf_group_author
+    ShelfGrouping.GENRE -> R.string.shelf_group_genre
 }
 
 @Composable
@@ -292,20 +322,34 @@ private fun FilterRow(filter: ShelfFilter, onFilterChange: (ShelfFilter) -> Unit
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = spacing.margin, vertical = spacing.xs),
+            .padding(horizontal = spacing.margin),
         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {
         ShelfFilter.entries.forEach { value ->
-            TextButton(
-                onClick = { onFilterChange(value) },
-                contentPadding = PaddingValues(horizontal = spacing.sm),
+            val active = value == filter
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(end = spacing.xs),
             ) {
-                Text(
-                    text = stringResource(value.labelRes()),
-                    style = type.labelMd,
-                    color = if (value == filter) colors.accent else colors.textSecondary,
-                    maxLines = 1,
-                    softWrap = false,
+                TextButton(
+                    onClick = { onFilterChange(value) },
+                    contentPadding = PaddingValues(horizontal = spacing.sm),
+                ) {
+                    Text(
+                        text = stringResource(value.labelRes()),
+                        style = type.labelMd,
+                        color = if (active) colors.text else colors.textSecondary,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+                // Активный фильтр подчёркнут акцентом — как на макете.
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = spacing.sm)
+                        .fillMaxWidth()
+                        .height(UNDERLINE_HEIGHT.dp)
+                        .background(if (active) colors.accent else Color.Transparent),
                 )
             }
         }
@@ -379,20 +423,31 @@ private fun Tier(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.shelf_tier, label),
-                style = type.headlineSm,
-                color = colors.text,
+                text = stringResource(R.string.shelf_tier, label).uppercase(),
+                style = type.labelSm,
+                color = colors.textSecondary,
             )
             if (tier.books.size > TIER_LIMIT) {
                 TextButton(onClick = onExpand) {
                     Text(
                         text = stringResource(R.string.shelf_all, tier.books.size),
-                        style = type.labelMd,
+                        style = type.labelSm,
                         color = colors.accent,
                     )
                 }
+            } else {
+                Text(
+                    text = stringResource(R.string.library_books_count, tier.books.size),
+                    style = type.labelSm,
+                    color = colors.textSecondary,
+                )
             }
         }
+
+        val shown = remember(tier.books) { tier.books.take(TIER_LIMIT) }
+        val looks = rememberRowLooks(
+            remember(shown) { shown.map { SpineKey(it.title, it.author) } },
+        )
 
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
@@ -402,30 +457,41 @@ private fun Tier(
             horizontalArrangement = Arrangement.spacedBy(spacing.gutterShelf),
             verticalAlignment = Alignment.Bottom,
         ) {
-            items(
-                items = tier.books.take(TIER_LIMIT),
-                key = { it.id },
-            ) { book ->
-                SpineOnShelf(book = book, onOpen = { onOpenBook(book) }, onMenu = { onMenu(book) })
+            itemsIndexed(items = shown, key = { _, book -> book.id }) { index, book ->
+                SpineOnShelf(
+                    book = book,
+                    look = looks[index],
+                    onOpen = { onOpenBook(book) },
+                    onMenu = { onMenu(book) },
+                )
             }
         }
 
-        // Полка под рядом: полоса 12dp и линия сверху — из DESIGN.md.
-        // Рисуется одним Canvas, а не Box с разделителем внутри: на эмуляторе
-        // API 34 именно эта связка уносила всю машину (см. пробу
-        // ShelfProbeTest). Заодно это на один узел разметки меньше в каждом
-        // ярусе.
+        // Доска полки из DESIGN.md: светлая линия сверху, сама доска и мягкая
+        // тень под ней. Всё одним Canvas — на узел разметки в каждом ярусе
+        // меньше, а тень тут не настоящая elevation, а именно рисунок.
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(SHELF_BOARD_HEIGHT.dp),
+                .height((SHELF_BOARD_HEIGHT + SHELF_SHADOW_HEIGHT).dp),
         ) {
-            drawRect(colors.shelfBoard)
+            val board = size.height * SHELF_BOARD_SHARE
+            drawRect(color = colors.shelfBoard, size = Size(size.width, board))
             drawLine(
                 color = colors.shelfBoardEdge,
                 start = Offset(0f, 0f),
                 end = Offset(size.width, 0f),
                 strokeWidth = 1f,
+            )
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0f to colors.shelfBoardEdge.copy(alpha = SHADOW_ALPHA),
+                    1f to Color.Transparent,
+                    startY = board,
+                    endY = size.height,
+                ),
+                topLeft = Offset(0f, board),
+                size = Size(size.width, size.height - board),
             )
         }
     }
@@ -433,11 +499,16 @@ private fun Tier(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SpineOnShelf(book: Book, onOpen: () -> Unit, onMenu: () -> Unit) {
+private fun SpineOnShelf(
+    book: Book,
+    look: SpineLook,
+    onOpen: () -> Unit,
+    onMenu: () -> Unit,
+) {
     Box(
         modifier = Modifier.combinedClickable(onClick = onOpen, onLongClick = onMenu),
     ) {
-        BookSpine(title = book.title, author = book.author)
+        BookSpine(title = book.title, author = book.author, look = look)
     }
 }
 
@@ -486,6 +557,7 @@ private fun CoverGrid(
                         // Обложки нет — показываем тот же корешок, но во всю клетку.
                         SpineFace(
                             title = book.title,
+                            author = book.author,
                             look = look,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -552,6 +624,7 @@ private fun TierList(
                 ) {
                     SpineFace(
                         title = book.title,
+                        author = book.author,
                         look = rememberSpineLook(book.title, book.author),
                         modifier = Modifier
                             .width(ROW_SPINE_WIDTH.dp)
@@ -604,6 +677,7 @@ private fun NowReadingCard(book: Book, onContinue: () -> Unit) {
         ) {
             SpineFace(
                 title = book.title,
+                author = book.author,
                 look = rememberSpineLook(book.title, book.author),
                 modifier = Modifier
                     .width(ROW_SPINE_WIDTH.dp)
@@ -626,6 +700,9 @@ private fun NowReadingCard(book: Book, onContinue: () -> Unit) {
                     progress = { book.progress },
                     color = colors.accent,
                     trackColor = colors.surfaceRecessed,
+                    // Точку в конце полосы Material рисует сам, и человек
+                    // читает её как поломку: убираем.
+                    drawStopIndicator = {},
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = spacing.xs),
@@ -695,29 +772,48 @@ private fun BottomNavigation(
 ) {
     val colors = BibliariumTheme.colors
     val type = BibliariumTheme.type
+    val spacing = BibliariumTheme.spacing
 
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         listOf(
-            R.string.nav_library to onLibrary,
-            R.string.nav_search to onSearch,
-            R.string.nav_add to onAdd,
-            R.string.nav_more to onMore,
-        ).forEach { (labelRes, action) ->
-            TextButton(onClick = action) {
+            Triple(R.string.nav_library, ShelfIcon.LIBRARY, onLibrary),
+            Triple(R.string.nav_search, ShelfIcon.SEARCH, onSearch),
+            Triple(R.string.nav_add, ShelfIcon.ADD, onAdd),
+            Triple(R.string.nav_more, ShelfIcon.MORE, onMore),
+        ).forEachIndexed { index, (labelRes, icon, action) ->
+            // Подсвечен тот пункт, где человек сейчас находится. Полка —
+            // первый, остальные уводят на другие экраны.
+            val tint = if (index == 0) colors.accent else colors.textSecondary
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable(onClick = action)
+                    .padding(horizontal = spacing.sm, vertical = spacing.xs),
+            ) {
+                ShelfIconImage(icon = icon, tint = tint)
                 Text(
                     text = stringResource(labelRes),
-                    style = type.labelMd,
-                    color = colors.text,
+                    style = type.labelSm,
+                    color = tint,
+                    modifier = Modifier.padding(top = spacing.xs),
                 )
             }
         }
     }
 }
 
+private const val GROUPING_DESCRIPTION = "Группировка"
+private const val SPINES_DESCRIPTION = "Корешки"
+private const val GRID_DESCRIPTION = "Сетка"
+
 private const val TIER_LETTERS = 26
+private const val UNDERLINE_HEIGHT = 2
+private const val SHELF_SHADOW_HEIGHT = 6
+private const val SHELF_BOARD_SHARE = 12f / (12f + 6f)
+private const val SHADOW_ALPHA = 0.5f
 private const val SHELF_BOARD_HEIGHT = 12
 private const val GRID_CELL_WIDTH = 104
 private const val GRID_COVER_HEIGHT = 150

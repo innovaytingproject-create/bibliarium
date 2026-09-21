@@ -77,14 +77,14 @@ class ShelfTest {
         openShelf()
         device.wait(Until.findObject(By.desc(book.title)), UI_TIMEOUT)
 
-        device.findObject(By.text("Сетка")).click()
+        device.findObject(By.desc("Сетка")).click()
         assertTrue(
             "После переключения в сетку названия книг не показались",
             device.wait(Until.hasObject(By.text(book.title)), UI_TIMEOUT),
         )
         settledScreenshot("shelf-grid")
 
-        device.findObject(By.text("Корешки")).click()
+        device.findObject(By.desc("Корешки")).click()
         assertNotNull(
             "Не вернулись к корешкам",
             device.wait(Until.findObject(By.desc(book.title)), UI_TIMEOUT),
@@ -154,13 +154,15 @@ class ShelfTest {
         // По статусу все пятьсот книг попадают в один ярус, а ярус показывает
         // двадцать корешков — прокручивать было бы нечего. По автору ярусов
         // становится двадцать пять, и вот это уже настоящая полка.
-        device.findObject(By.text("По автору")).click()
+        // Группировка переехала под значок в шапке.
+        device.findObject(By.desc("Группировка")).click()
+        device.wait(Until.findObject(By.text("По автору")), UI_TIMEOUT).click()
         device.waitForIdle()
         settledScreenshot("shelf-500-books")
 
         measureScroll("корешки")
 
-        device.findObject(By.text("Сетка")).click()
+        device.findObject(By.desc("Сетка")).click()
         device.waitForIdle()
         settledScreenshot("shelf-500-grid")
 

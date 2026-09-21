@@ -122,19 +122,22 @@ internal fun typeTokensFor(variant: ThemeVariant): TypeTokens {
             fontWeight = FontWeight.Normal,
             lineHeight = 18.sp,
         ),
+        // 14sp на узком корешке резало длинные названия многоточием почти
+        // всегда; 12sp с плотным межстрочным помещает их целиком, а на
+        // широком корешке — ещё и в две строки.
         spineTitle = TextStyle(
             fontFamily = heading,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            lineHeight = 18.sp,
-            letterSpacing = 0.04.em,
+            lineHeight = 14.sp,
+            letterSpacing = 0.02.em,
         ),
         spineMeta = TextStyle(
             fontFamily = ui,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            lineHeight = 12.sp,
-            letterSpacing = 0.08.em,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 11.sp,
+            letterSpacing = 0.06.em,
         ),
         labelLg = TextStyle(
             fontFamily = ui,

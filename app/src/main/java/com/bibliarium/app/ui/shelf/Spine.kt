@@ -37,11 +37,10 @@ import com.bibliarium.app.ui.theme.SpineStyleTokens
  *
  * Рисуется из названия, а не берётся из файла: обложки есть не у всех книг,
  * а полка должна выглядеть цельной. Одна и та же книга всегда выглядит
- * одинаково — весь вид выводится из хэша `название|автор` (раздел 5 ТЗ),
- * ничего не хранится и ничего не случайно.
+ * одинаково — весь вид выводится из хэша `название|автор` (раздел 5 ТЗ).
  *
  * Рисование идёт одним Canvas: ни Bitmap, ни вложенных composable. На полке
- * из пятисот книг это разница между плавной прокруткой и слайд-шоу.
+ * из сотен книг это и есть разница между плавной прокруткой и слайд-шоу.
  */
 
 /** Значки на корешке. Порядок важен: индекс берётся из хэша. */
@@ -55,6 +54,9 @@ enum class SpineOrnament {
     WAVE,
     TRIANGLE,
 }
+
+/** Из чего считается вид корешка. */
+data class SpineKey(val title: String, val author: String?)
 
 /** Всё, что определяет вид корешка. Считается один раз из хэша. */
 @Immutable
@@ -91,9 +93,15 @@ fun spineLookOf(
     palette: List<Color>,
     inkDark: Color,
     inkLight: Color,
+    /** Цвет соседа слева: два одинаковых корешка рядом сливаются в пятно. */
+    avoid: Color? = null,
 ): SpineLook {
     val hash = spineHash(title, author)
-    val color = palette[hash % palette.size]
+    var index = hash % palette.size
+    if (avoid != null && palette[index] == avoid) {
+        index = (index + 1) % palette.size
+    }
+    val color = palette[index]
     return SpineLook(
         width = (MIN_WIDTH + (hash shr 3) % WIDTH_STEPS * WIDTH_STEP).dp,
         height = (MIN_HEIGHT + (hash shr 7) % HEIGHT_STEPS * HEIGHT_STEP).dp,
@@ -105,52 +113,29 @@ fun spineLookOf(
     )
 }
 
-/** Корешок на полке: размер свой, из хэша. */
-@Composable
-fun BookSpine(
-    title: String,
-    author: String?,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    val look = rememberSpineLook(title, author)
-    SpineFace(
-        title = title,
-        look = look,
-        modifier = modifier
-            .size(look.width, look.height)
-            .let { if (onClick != null) it.clickable(onClick = onClick) else it },
-    )
-}
-
 /**
- * Корешок в заданном размере — для режима сетки, где своей обложки у книги нет.
- * Тот же рисунок, просто крупнее.
+ * Виды корешков для целого ряда.
+ *
+ * Считается рядом, а не поодиночке, ровно ради одного: соседи не должны быть
+ * одного цвета. Хэш про соседей ничего не знает, поэтому совпадения разводятся
+ * здесь — следующим цветом палитры по кругу.
  */
 @Composable
-fun SpineFace(
-    title: String,
-    look: SpineLook,
-    modifier: Modifier = Modifier,
-) {
-    val style = BibliariumTheme.spine
-    val textStyle = BibliariumTheme.type.spineTitle.copy(color = look.ink)
-    val measurer = rememberTextMeasurer()
-
-    Canvas(
-        modifier = modifier
-            .clip(RoundedCornerShape(style.corner))
-            // Название нужно и человеку с озвучкой, и проверке: нарисованный
-            // Canvas текстом наружу не виден.
-            .semantics { contentDescription = title },
-    ) {
-        drawSpine(
-            title = title,
-            look = look,
-            style = style,
-            textStyle = textStyle,
-            measurer = measurer,
-        )
+fun rememberRowLooks(keys: List<SpineKey>): List<SpineLook> {
+    val colors = BibliariumTheme.colors
+    return remember(keys, colors) {
+        val looks = mutableListOf<SpineLook>()
+        keys.forEach { key ->
+            looks += spineLookOf(
+                title = key.title,
+                author = key.author,
+                palette = colors.spinePalette,
+                inkDark = colors.spineInkDark,
+                inkLight = colors.spineInkLight,
+                avoid = looks.lastOrNull()?.color,
+            )
+        }
+        looks
     }
 }
 
@@ -168,11 +153,67 @@ fun rememberSpineLook(title: String, author: String?): SpineLook {
     }
 }
 
+/** Корешок на полке: размер свой, из хэша. */
+@Composable
+fun BookSpine(
+    title: String,
+    author: String?,
+    modifier: Modifier = Modifier,
+    look: SpineLook = rememberSpineLook(title, author),
+    onClick: (() -> Unit)? = null,
+) {
+    SpineFace(
+        title = title,
+        author = author,
+        look = look,
+        modifier = modifier
+            .size(look.width, look.height)
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it },
+    )
+}
+
+/**
+ * Корешок в заданном размере — для сетки и карточек, где размер задаёт место
+ * на экране, а не хэш. Рисунок тот же.
+ */
+@Composable
+fun SpineFace(
+    title: String,
+    author: String?,
+    look: SpineLook,
+    modifier: Modifier = Modifier,
+) {
+    val style = BibliariumTheme.spine
+    val titleStyle = BibliariumTheme.type.spineTitle.copy(color = look.ink)
+    val authorStyle = BibliariumTheme.type.spineMeta.copy(color = look.ink.copy(alpha = META_ALPHA))
+    val measurer = rememberTextMeasurer()
+
+    Canvas(
+        modifier = modifier
+            .clip(RoundedCornerShape(style.corner))
+            // Название нужно и человеку с озвучкой, и проверке: нарисованный
+            // Canvas текстом наружу не виден.
+            .semantics { contentDescription = title },
+    ) {
+        drawSpine(
+            title = title,
+            author = author,
+            look = look,
+            style = style,
+            titleStyle = titleStyle,
+            authorStyle = authorStyle,
+            measurer = measurer,
+        )
+    }
+}
+
 private fun DrawScope.drawSpine(
     title: String,
+    author: String?,
     look: SpineLook,
     style: SpineStyleTokens,
-    textStyle: TextStyle,
+    titleStyle: TextStyle,
+    authorStyle: TextStyle,
     measurer: TextMeasurer,
 ) {
     drawRect(look.color)
@@ -190,88 +231,147 @@ private fun DrawScope.drawSpine(
     }
 
     val inset = size.width * INSET_SHARE
+    val ornamentSize = size.width * ORNAMENT_SHARE
+    val ornamentAtTop = look.pattern % 2 == 1
+    val ornamentCenter = Offset(
+        x = size.width / 2,
+        y = if (ornamentAtTop) inset * ORNAMENT_GAP else size.height - inset * ORNAMENT_GAP,
+    )
+
     if (style.patterned) {
-        drawPattern(look, inset)
+        drawPattern(look, inset, ornamentAtTop)
     } else {
         drawRule(look.ink, inset, size.height * TOP_RULE)
     }
 
-    val ornamentCenter = if (look.pattern % 2 == 0) {
-        Offset(size.width / 2, size.height - inset * ORNAMENT_GAP)
-    } else {
-        Offset(size.width / 2, inset * ORNAMENT_GAP)
-    }
-    val ornamentSize = size.width * ORNAMENT_SHARE
-    val ornament = look.ornament
-    if (ornament != null) {
-        drawOrnament(ornament, ornamentCenter, ornamentSize, look.ink)
-    } else {
-        // Вместо значка — тонкая линия: корешок не должен выглядеть пустым.
-        drawRule(look.ink, inset, ornamentCenter.y)
-    }
+    look.ornament?.let { drawOrnament(it, ornamentCenter, ornamentSize, look.ink) }
 
-    drawSpineTitle(title, textStyle, measurer, inset, ornamentSize)
+    drawSpineText(title, author, titleStyle, authorStyle, measurer, inset, ornamentSize)
 }
 
-private fun DrawScope.drawSpineTitle(
+/**
+ * Название вдоль корешка, автор — мельче и ниже.
+ *
+ * На широком корешке название переносится на две строки: обрезать его
+ * многоточием стоит только тогда, когда иначе никак. Автор рисуется, только
+ * если после названия осталось место: втиснутая в край строка читается хуже,
+ * чем её отсутствие.
+ */
+private fun DrawScope.drawSpineText(
     title: String,
-    textStyle: TextStyle,
+    author: String?,
+    titleStyle: TextStyle,
+    authorStyle: TextStyle,
     measurer: TextMeasurer,
     inset: Float,
     ornamentSize: Float,
 ) {
-    val available = (size.height - inset * TITLE_MARGIN - ornamentSize * 2).toInt()
-    if (available <= 0) return
+    val along = (size.height - inset * TITLE_MARGIN - ornamentSize * 2).toInt()
+    if (along <= 0) return
 
-    val layout: TextLayoutResult = measurer.measure(
+    val across = size.width - inset * 2
+    val wide = size.width >= WIDE_WIDTH.dp.toPx()
+
+    val titleLayout: TextLayoutResult = measurer.measure(
         text = title,
-        style = textStyle,
-        maxLines = 1,
+        style = titleStyle,
+        maxLines = if (wide) TITLE_LINES_WIDE else 1,
         overflow = TextOverflow.Ellipsis,
-        constraints = Constraints(maxWidth = available),
+        constraints = Constraints(maxWidth = along),
     )
+
+    val authorLayout: TextLayoutResult? = author
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { text ->
+            measurer.measure(
+                text = text,
+                style = authorStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                constraints = Constraints(maxWidth = along),
+            )
+        }
+        ?.takeIf { it.size.height + titleLayout.size.height + inset <= across }
+
+    val block = titleLayout.size.height +
+        (authorLayout?.let { it.size.height + inset * AUTHOR_GAP } ?: 0f)
 
     // Поворот на 90° по часовой: так название читается сверху вниз, как на
     // настоящем корешке. Разворот идёт вокруг центра, поэтому текст остаётся
     // посередине корешка.
     rotate(degrees = TITLE_ROTATION) {
+        val top = center.y - block / 2
         drawText(
-            textLayoutResult = layout,
-            topLeft = Offset(
-                x = center.x - layout.size.width / 2f,
-                y = center.y - layout.size.height / 2f,
-            ),
+            textLayoutResult = titleLayout,
+            topLeft = Offset(center.x - titleLayout.size.width / 2f, top),
         )
+        authorLayout?.let {
+            drawText(
+                textLayoutResult = it,
+                topLeft = Offset(
+                    x = center.x - it.size.width / 2f,
+                    y = top + titleLayout.size.height + inset * AUTHOR_GAP,
+                ),
+            )
+        }
     }
 }
 
-/** Шаблоны раскладки линий и рамки — только в теме Archive. */
-private fun DrawScope.drawPattern(look: SpineLook, inset: Float) {
+/**
+ * Шаблоны Archive. Каждый заметно отличается от соседнего: иначе вся полка
+ * выглядит набранной по одному лекалу.
+ */
+private fun DrawScope.drawPattern(look: SpineLook, inset: Float, ornamentAtTop: Boolean) {
     val ink = look.ink
+    val top = size.height * TOP_RULE
+    val bottom = size.height * (1 - TOP_RULE)
+
     when (look.pattern) {
+        // Две линии сверху и одна снизу.
         0 -> {
-            drawRule(ink, inset, size.height * TOP_RULE)
-            drawRule(ink, inset, size.height * (1 - TOP_RULE))
+            drawRule(ink, inset, top)
+            drawRule(ink, inset, top + inset * RULE_GAP)
+            drawRule(ink, inset, bottom)
         }
 
-        1 -> {
-            drawRule(ink, inset, size.height * TOP_RULE)
-            drawRule(ink, inset, size.height * TOP_RULE + inset * RULE_GAP)
+        // Рамка по контуру.
+        1 -> drawFrame(ink, inset)
+
+        // Пояс поперёк корешка с той стороны, где нет значка.
+        2 -> {
+            val bandCenter = if (ornamentAtTop) bottom - inset else top + inset
+            drawRect(
+                color = ink.copy(alpha = BAND_ALPHA),
+                topLeft = Offset(0f, bandCenter - inset / 2),
+                size = Size(size.width, inset),
+            )
         }
 
-        2 -> drawFrame(ink, inset)
-
-        3 -> {
-            drawRule(ink, inset, size.height * (1 - TOP_RULE))
-            drawRule(ink, inset, size.height * (1 - TOP_RULE) - inset * RULE_GAP)
+        // Три коротких штриха снизу.
+        3 -> repeat(SHORT_RULES) { index ->
+            val y = bottom - index * inset * RULE_GAP
+            drawLine(
+                color = ink.copy(alpha = RULE_ALPHA),
+                start = Offset(size.width / 2 - inset, y),
+                end = Offset(size.width / 2 + inset, y),
+                strokeWidth = HAIRLINE,
+            )
         }
 
+        // Медальон вокруг значка.
         4 -> {
-            drawFrame(ink, inset)
-            drawRule(ink, inset, size.height * TOP_RULE)
+            val y = if (ornamentAtTop) inset * ORNAMENT_GAP else size.height - inset * ORNAMENT_GAP
+            drawCircle(
+                color = ink.copy(alpha = RULE_ALPHA),
+                radius = size.width * MEDALLION_SHARE,
+                center = Offset(size.width / 2, y),
+                style = Stroke(width = HAIRLINE),
+            )
         }
 
-        else -> drawRule(ink, inset, size.height * (1 - TOP_RULE))
+        // Чистый корешок: только значок и название.
+        else -> Unit
     }
 }
 
@@ -400,15 +500,24 @@ private const val ORNAMENT_SKIP = 3
 private const val PATTERNS = 6
 private const val LIGHT_BACKGROUND = 0.55f
 
+/** С этой ширины название помещается в две строки. */
+private const val WIDE_WIDTH = 50
+private const val TITLE_LINES_WIDE = 2
+
 private const val EDGE_STOP = 0.18f
 private const val INSET_SHARE = 0.18f
 private const val TOP_RULE = 0.07f
 private const val RULE_GAP = 0.5f
 private const val RULE_ALPHA = 0.45f
+private const val BAND_ALPHA = 0.22f
+private const val SHORT_RULES = 3
+private const val MEDALLION_SHARE = 0.3f
 private const val HAIRLINE = 1f
 private const val ORNAMENT_SHARE = 0.34f
 private const val ORNAMENT_GAP = 2.2f
 private const val ORNAMENT_ALPHA = 0.7f
 private const val ORNAMENT_STROKE = 1.4f
+private const val META_ALPHA = 0.75f
 private const val TITLE_MARGIN = 3f
+private const val AUTHOR_GAP = 0.4f
 private const val TITLE_ROTATION = 90f

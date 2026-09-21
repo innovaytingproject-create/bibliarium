@@ -74,17 +74,49 @@ data class ShapeTokens(
     val sheet: Dp = 8.dp,
 )
 
+/**
+ * Палитра корешков Archive, светлая тема.
+ *
+ * Десять цветов, светлых из них три. В первой версии их было восемь, и четыре
+ * из восьми — кремовые: полка получалась наполовину белой и выглядела
+ * однообразной. Тёмные и насыщенные взяты из DESIGN.md (терракота, ель,
+ * буккрам, охра), синий и бордо подобраны в том же ключе — приглушённые,
+ * как крашеное полотно, а не как краска из банки.
+ */
 private val ArchiveSpinePalette = listOf(
-    Color(0xFFEFE9DC),
-    Color(0xFF232624),
-    Color(0xFFB44D38),
-    Color(0xFFE9E2D2),
-    Color(0xFF40584C),
-    Color(0xFF2E3330),
-    Color(0xFF8A6A3B),
-    Color(0xFFF5F1E6),
+    Color(0xFFB44D38), // терракота
+    Color(0xFF40584C), // тёмно-зелёный, еловый
+    Color(0xFF33445C), // глубокий синий
+    Color(0xFF8A6A3B), // охра
+    Color(0xFF6B2F2B), // бордо
+    Color(0xFF232624), // графит
+    Color(0xFF373D39), // угольный
+    Color(0xFF5A6B3C), // оливковый
+    Color(0xFFEFE9DC), // кремовый
+    Color(0xFFE9E2D2), // пергамент
 )
 
+/**
+ * Палитра корешков Archive, тёмная тема.
+ *
+ * Отдельная не для красоты: кремовый корешок на тёмном фоне читается как
+ * белое пятно. Здесь светлые заменены на приглушённые тёплые, а тёмные
+ * чуть подсветлены, чтобы не слиться с фоном полки.
+ */
+private val ArchiveSpinePaletteDark = listOf(
+    Color(0xFFC05B45), // терракота
+    Color(0xFF4C6A5C), // еловый
+    Color(0xFF3C4E68), // синий
+    Color(0xFF9A7743), // охра
+    Color(0xFF7A3A33), // бордо
+    Color(0xFF2E3330), // графит
+    Color(0xFF434A45), // угольный
+    Color(0xFF66784A), // оливковый
+    Color(0xFFBDB4A2), // тёплый серый вместо кремового
+    Color(0xFFA1907A), // пергамент, приглушённый
+)
+
+/** Палитра темы Spine — из раздела 8 ТЗ, цвета там яркие и не кремовые. */
 private val SpineSpinePalette = listOf(
     Color(0xFFC6A9D8),
     Color(0xFF2D302E),
@@ -123,7 +155,7 @@ internal val ArchiveDarkColors = ColorTokens(
     accent = Color(0xFFD66C55),
     onAccent = Color(0xFF141515),
     line = Color(0xFF2C2E2D),
-    spinePalette = ArchiveSpinePalette,
+    spinePalette = ArchiveSpinePaletteDark,
     spineInkDark = Color(0xFF202321),
     spineInkLight = Color(0xFFECEDE8),
 )

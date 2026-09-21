@@ -122,6 +122,13 @@ class ReaderViewModel(
             position = pdfPage ?: locator.locations.position,
         )
 
+        // След в логе: если место чтения однажды снова начнёт теряться,
+        // будет видно, какой книге и какое значение записали.
+        android.util.Log.i(
+            PROGRESS_TAG,
+            "книга $id: пишем прогресс ${(progress * 100).toInt()} %",
+        )
+
         viewModelScope.launch {
             bookStore.saveProgress(id, progress, locator.serialize())
         }
@@ -210,6 +217,7 @@ class ReaderViewModel(
         )
 
     companion object {
+        private const val PROGRESS_TAG = "BibliariumReader"
         private const val WORDS_PER_MINUTE = 250f
         private const val WORDS_PER_POSITION = 170f
         private const val MINUTES_PER_PDF_PAGE = 2f

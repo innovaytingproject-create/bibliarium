@@ -155,7 +155,7 @@ class RatingTest {
      */
     private fun openReaderAndFinish(book: Book) {
         openCard(book)
-        scrollTo("читать")!!.click()
+        startReading()
         device.wait(Until.hasObject(By.textContains("Книга А")), TIMEOUT)
 
         // Долистать всю книгу тапами — это сотня нажатий: в главе
@@ -191,6 +191,17 @@ class RatingTest {
         context.startActivity(intent)
         device.wait(Until.findObject(By.desc(book.title)), TIMEOUT).click()
         device.wait(Until.hasObject(By.text(book.title)), TIMEOUT)
+    }
+
+    /**
+     * Кнопка чтения называется по-разному: у нетронутой книги «Начать
+     * читать», у начатой «Продолжить чтение». Ищем обе — иначе проверка
+     * ломается ровно на втором заходе.
+     */
+    private fun startReading() {
+        val button = scrollTo("Продолжить чтение") ?: scrollTo("Начать читать")
+        assertNotNull("В карточке нет кнопки чтения", button)
+        button!!.click()
     }
 
     private fun tapCenter() {

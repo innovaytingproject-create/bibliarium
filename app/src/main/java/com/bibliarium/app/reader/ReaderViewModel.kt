@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.bibliarium.app.AppContainer
 import com.bibliarium.app.data.settings.ReaderSettingsStore
 import com.bibliarium.app.data.store.BookStore
+import com.bibliarium.app.data.store.RatingStore
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,7 +48,17 @@ class ReaderViewModel(
     private val bookStore: BookStore,
     private val opener: ReaderContentOpener,
     private val settingsStore: ReaderSettingsStore,
+    private val ratingStore: RatingStore,
 ) : ViewModel() {
+
+    /**
+     * Книга дочитана, и опрос по ней ещё не показывали.
+     *
+     * Экран спрашивает об этом сам: показать опрос — его дело, а не
+     * вьюмодели, которая не знает ни про активити, ни про переходы.
+     */
+    private val _surveyDue = MutableStateFlow<String?>(null)
+    val surveyDue: StateFlow<String?> = _surveyDue.asStateFlow()
 
     private val _state = MutableStateFlow<ReaderState>(ReaderState.Loading)
     val state: StateFlow<ReaderState> = _state.asStateFlow()
@@ -134,7 +145,24 @@ class ReaderViewModel(
 
         viewModelScope.launch {
             bookStore.saveProgress(id, progress, locator.serialize())
+            if (progress >= FINISHED) askAboutBook(id)
         }
+    }
+
+    /**
+     * Опрос показывается один раз на книгу: отметка ставится сразу, иначе
+     * он всплывал бы снова при каждом новом перелистывании последней
+     * страницы.
+     */
+    private suspend fun askAboutBook(id: String) {
+        val rating = ratingStore.get(id)
+        if (rating?.surveyShown == true) return
+        ratingStore.markSurveyShown(id)
+        _surveyDue.value = id
+    }
+
+    fun surveyShown() {
+        _surveyDue.value = null
     }
 
     fun updateEpubPreferences(preferences: EpubPreferences) {
@@ -224,6 +252,9 @@ class ReaderViewModel(
         private const val WORDS_PER_MINUTE = 250f
         private const val WORDS_PER_POSITION = 170f
         private const val MINUTES_PER_PDF_PAGE = 2f
+
+        /** С этой доли книга считается дочитанной — тот же порог, что в хранилище. */
+        private const val FINISHED = 0.99f
         private const val DEFAULT_LINE_HEIGHT = 1.7
         private const val DEFAULT_PAGE_MARGINS = 1.0
 
@@ -233,6 +264,7 @@ class ReaderViewModel(
                     bookStore = container.bookStore,
                     opener = container.readerContentOpener,
                     settingsStore = container.readerSettings,
+                    ratingStore = container.ratingStore,
                 )
             }
         }

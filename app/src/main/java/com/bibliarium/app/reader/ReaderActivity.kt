@@ -17,6 +17,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.bibliarium.app.R
 import com.bibliarium.app.appContainer
+import com.bibliarium.app.ui.rating.RatingSurveyActivity
 import com.github.barteksc.pdfviewer.PDFView
 import java.io.File
 import kotlinx.coroutines.flow.collectLatest
@@ -101,6 +102,7 @@ class ReaderActivity : AppCompatActivity() {
         viewModel.open(bookId, intent.getStringExtra(EXTRA_LOCATOR))
         observeState()
         observePosition()
+        observeSurvey()
     }
 
     private fun observeState() {
@@ -125,6 +127,19 @@ class ReaderActivity : AppCompatActivity() {
                             setPanelsVisible(true)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /** Книга дочитана — спрашиваем о ней, пока впечатление свежее. */
+    private fun observeSurvey() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.surveyDue.collectLatest { bookId ->
+                    val id = bookId ?: return@collectLatest
+                    startActivity(RatingSurveyActivity.intent(this@ReaderActivity, id))
+                    viewModel.surveyShown()
                 }
             }
         }

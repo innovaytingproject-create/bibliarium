@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.bibliarium.app.R
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookRating
 import com.bibliarium.app.domain.ReadingStatus
 import com.bibliarium.app.ui.theme.BibliariumTheme
 
@@ -69,6 +70,7 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 @Composable
 fun ShelfContent(
     books: List<Book>,
+    ratings: Map<String, BookRating>,
     isImporting: Boolean,
     onOpenBook: (Book) -> Unit,
     onMenu: (Book) -> Unit,
@@ -94,7 +96,7 @@ fun ShelfContent(
     val unknownAuthor = stringResource(R.string.shelf_unknown_author)
     val unknownGenre = stringResource(R.string.shelf_unknown_genre)
 
-    val tiers = remember(books, grouping, filter, query) {
+    val tiers = remember(books, ratings, grouping, filter, query) {
         buildTiers(
             books = books,
             grouping = grouping,
@@ -103,6 +105,7 @@ fun ShelfContent(
             unknownAuthor = unknownAuthor,
             unknownGenre = unknownGenre,
             statusNames = statusNames,
+            ratings = ratings,
         )
     }
 
@@ -363,6 +366,7 @@ private fun ShelfFilter.labelRes(): Int = when (this) {
     ShelfFilter.READING -> R.string.shelf_filter_reading
     ShelfFilter.FINISHED -> R.string.shelf_filter_finished
     ShelfFilter.FAVORITE -> R.string.shelf_filter_favorite
+    ShelfFilter.LOVED -> R.string.shelf_filter_loved
 }
 
 @Composable

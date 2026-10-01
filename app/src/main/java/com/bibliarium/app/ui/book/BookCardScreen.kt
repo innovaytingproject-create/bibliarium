@@ -45,7 +45,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.bibliarium.app.R
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookRating
 import com.bibliarium.app.reader.TocEntry
+import com.bibliarium.app.ui.rating.RatingStars
+import com.bibliarium.app.ui.rating.RatingStarsStatic
 import com.bibliarium.app.ui.shelf.SpineFace
 import com.bibliarium.app.ui.shelf.rememberSpineLook
 import com.bibliarium.app.ui.theme.BibliariumTheme
@@ -66,11 +69,13 @@ fun BookCardScreen(
     viewModel: BookCardViewModel,
     onBack: () -> Unit,
     onRead: (locator: String?) -> Unit,
+    onRate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val book by viewModel.book.collectAsStateWithLifecycle()
     val details by viewModel.details.collectAsStateWithLifecycle()
     val quotes by viewModel.quotesCount.collectAsStateWithLifecycle()
+    val rating by viewModel.rating.collectAsStateWithLifecycle()
     val deleted by viewModel.deleted.collectAsStateWithLifecycle()
 
     val colors = BibliariumTheme.colors
@@ -185,6 +190,8 @@ fun BookCardScreen(
             book = current,
             quotes = quotes,
             pages = details.pages,
+            rating = rating,
+            onRate = viewModel::rate,
             modifier = Modifier.padding(top = spacing.lg),
         )
 
@@ -202,8 +209,20 @@ fun BookCardScreen(
             modifier = Modifier.padding(horizontal = spacing.margin),
         )
 
+        rating?.takeIf { it.answers.isNotEmpty() }?.let { answers ->
+            Breakdown(
+                rating = answers,
+                modifier = Modifier.padding(
+                    horizontal = spacing.margin,
+                    vertical = spacing.md,
+                ),
+            )
+        }
+
         Actions(
             quotes = quotes,
+            rated = rating?.hasRating == true,
+            onRate = onRate,
             hasToc = details.tableOfContents.isNotEmpty(),
             onToc = { showToc = true },
             onQuotes = { /* список цитат появится вместе с выделениями */ },
@@ -376,10 +395,18 @@ private fun Titles(book: Book, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Facts(book: Book, quotes: Int, pages: Int, modifier: Modifier = Modifier) {
+private fun Facts(
+    book: Book,
+    quotes: Int,
+    pages: Int,
+    rating: BookRating?,
+    onRate: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.Top,
     ) {
         Fact(
             value = stringResource(R.string.card_percent, (book.progress * PERCENT).toInt()),
@@ -390,6 +417,83 @@ private fun Facts(book: Book, quotes: Int, pages: Int, modifier: Modifier = Modi
             value = if (pages > 0) pages.toString() else DASH,
             label = stringResource(R.string.card_pages),
         )
+        RatingFact(rating = rating, onRate = onRate)
+    }
+}
+
+/**
+ * Четвёртый столбец: оценка.
+ *
+ * Пока оценки нет, вместо числа ряд пустых звёзд — поставить её можно
+ * прямо здесь, не открывая опрос.
+ */
+@Composable
+private fun RatingFact(rating: BookRating?, onRate: (Int) -> Unit) {
+    val colors = BibliariumTheme.colors
+    val type = BibliariumTheme.type
+    val overall = rating?.overall
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (overall != null) {
+            Text(
+                text = String.format(Locale("ru"), "%.1f", overall),
+                style = type.headlineSm,
+                color = colors.text,
+            )
+        } else {
+            RatingStars(value = null, onPick = onRate, label = "Оценка")
+        }
+        Text(
+            text = stringResource(R.string.card_rating),
+            style = type.labelSm,
+            color = colors.textSecondary,
+        )
+    }
+}
+
+/** Разбивка по четырём сторонам — свёрнутая, раскрывается по тапу. */
+@Composable
+private fun Breakdown(rating: BookRating, modifier: Modifier = Modifier) {
+    val colors = BibliariumTheme.colors
+    val type = BibliariumTheme.type
+    val spacing = BibliariumTheme.spacing
+    var open by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.card_rating_breakdown),
+            style = type.labelMd,
+            color = colors.accent,
+            modifier = Modifier.clickable { open = !open },
+        )
+        if (!open) return@Column
+
+        listOf(
+            R.string.card_rating_useful to rating.useful,
+            R.string.card_rating_clarity to rating.clarity,
+            R.string.card_rating_novelty to rating.novelty,
+            R.string.card_rating_engagement to rating.engagement,
+        ).forEach { (labelRes, value) ->
+            if (value == null) return@forEach
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = spacing.xs),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(text = stringResource(labelRes), style = type.bodyMd, color = colors.text)
+                RatingStarsStatic(value = value)
+            }
+        }
+
+        rating.note?.let { note ->
+            Text(
+                text = "«$note»",
+                style = type.bodyMd,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = spacing.sm),
+            )
+        }
     }
 }
 
@@ -498,9 +602,11 @@ private fun Description(text: String?, onEdit: () -> Unit, modifier: Modifier = 
 @Composable
 private fun Actions(
     quotes: Int,
+    rated: Boolean,
     hasToc: Boolean,
     onToc: () -> Unit,
     onQuotes: () -> Unit,
+    onRate: () -> Unit,
     onRename: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -509,6 +615,11 @@ private fun Actions(
             ActionRow(stringResource(R.string.card_toc), null, onToc)
         }
         ActionRow(stringResource(R.string.card_quotes_and_notes), quotes.toString(), onQuotes)
+        ActionRow(
+            stringResource(if (rated) R.string.card_rate_change else R.string.card_rate),
+            null,
+            onRate,
+        )
         ActionRow(stringResource(R.string.card_edit_name), null, onRename)
     }
 }

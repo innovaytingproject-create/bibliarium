@@ -9,7 +9,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.bibliarium.app.AppContainer
 import com.bibliarium.app.data.store.BookStore
 import com.bibliarium.app.data.store.HighlightStore
+import com.bibliarium.app.data.store.RatingStore
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookRating
 import com.bibliarium.app.domain.Highlight
 import com.bibliarium.app.reader.ReaderContentOpener
 import com.bibliarium.app.reader.TocEntry
@@ -33,6 +35,7 @@ class BookCardViewModel(
     private val bookStore: BookStore,
     private val highlightStore: HighlightStore,
     private val opener: ReaderContentOpener,
+    private val ratingStore: RatingStore,
 ) : ViewModel() {
 
     private val _book = MutableStateFlow<Book?>(null)
@@ -47,6 +50,10 @@ class BookCardViewModel(
     val quotesCount: StateFlow<Int> = highlights
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIPTION_MS), 0)
+
+    /** Оценка книги: ею заняты четвёртый столбец и блок «Как я оценил». */
+    val rating: StateFlow<BookRating?> = ratingStore.observe(bookId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIPTION_MS), null)
 
     private val _deleted = MutableStateFlow(false)
     val deleted: StateFlow<Boolean> = _deleted.asStateFlow()
@@ -115,6 +122,11 @@ class BookCardViewModel(
         }
     }
 
+    /** Оценка, поставленная звёздами прямо в карточке, без опроса. */
+    fun rate(stars: Int) {
+        viewModelScope.launch { ratingStore.setOverall(bookId, stars.toFloat()) }
+    }
+
     fun delete() {
         viewModelScope.launch {
             bookStore.delete(bookId)
@@ -133,6 +145,7 @@ class BookCardViewModel(
                         bookStore = container.bookStore,
                         highlightStore = container.highlightStore,
                         opener = container.readerContentOpener,
+                        ratingStore = container.ratingStore,
                     )
                 }
             }

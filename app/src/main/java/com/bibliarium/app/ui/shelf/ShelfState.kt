@@ -1,6 +1,7 @@
 package com.bibliarium.app.ui.shelf
 
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookRating
 import com.bibliarium.app.domain.ReadingStatus
 
 /** Что показывает полка: корешки или сетку обложек. */
@@ -22,6 +23,9 @@ enum class ShelfFilter {
     READING,
     FINISHED,
     FAVORITE,
+
+    /** Книги с высокой оценкой — от 4,5. */
+    LOVED,
 }
 
 /** Ярус: заголовок и книги в нём. */
@@ -50,9 +54,11 @@ fun buildTiers(
     unknownAuthor: String,
     unknownGenre: String,
     statusNames: Map<ReadingStatus, String>,
+    /** Оценки книг: по ним работают «Любимые» и порядок в ярусе «Прочитано». */
+    ratings: Map<String, BookRating> = emptyMap(),
 ): List<ShelfTier> {
     val visible = books
-        .filter { it.matches(filter) }
+        .filter { it.matches(filter, ratings[it.id]) }
         .filter { it.matches(query) }
 
     if (visible.isEmpty()) return emptyList()
@@ -78,21 +84,30 @@ fun buildTiers(
         ShelfTier(
             key = name,
             name = name,
-            // Внутри яруса — недавно открытые впереди: полка не должна
-            // перетасовываться, но нужное обычно последнее.
-            books = group.sortedWith(
-                compareByDescending<Book> { it.lastOpenedAt ?: 0L }
-                    .thenByDescending { it.addedAt },
-            ),
+            // Прочитанное выстраивается по оценке: там уже не важно, когда
+            // книгу открывали, важно, какой она оказалась. В остальных
+            // ярусах впереди недавно открытые.
+            books = if (group.all { it.status == ReadingStatus.FINISHED }) {
+                group.sortedWith(
+                    compareByDescending<Book> { ratings[it.id]?.overall ?: 0f }
+                        .thenByDescending { it.lastOpenedAt ?: 0L },
+                )
+            } else {
+                group.sortedWith(
+                    compareByDescending<Book> { it.lastOpenedAt ?: 0L }
+                        .thenByDescending { it.addedAt },
+                )
+            },
         )
     }
 }
 
-private fun Book.matches(filter: ShelfFilter): Boolean = when (filter) {
+private fun Book.matches(filter: ShelfFilter, rating: BookRating?): Boolean = when (filter) {
     ShelfFilter.ALL -> true
     ShelfFilter.READING -> status == ReadingStatus.READING
     ShelfFilter.FINISHED -> status == ReadingStatus.FINISHED
     ShelfFilter.FAVORITE -> isFavorite
+    ShelfFilter.LOVED -> (rating?.overall ?: 0f) >= BookRating.FAVOURITE_FROM
 }
 
 private fun Book.matches(query: String): Boolean {

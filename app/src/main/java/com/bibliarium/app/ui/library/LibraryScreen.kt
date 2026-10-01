@@ -42,6 +42,7 @@ fun LibraryScreen(
     modifier: Modifier = Modifier,
 ) {
     val books by viewModel.books.collectAsStateWithLifecycle()
+    val ratings by viewModel.ratings.collectAsStateWithLifecycle()
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
 
@@ -107,6 +108,7 @@ fun LibraryScreen(
     ) { innerPadding ->
         ShelfContent(
             books = books,
+            ratings = ratings,
             isImporting = isImporting,
             onOpenBook = { book -> openBook(book, onOpenBook) { explaining = it } },
             onMenu = { menuFor = it },

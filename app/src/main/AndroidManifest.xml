@@ -43,6 +43,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Опрос после прочтения: отдельный экран поверх читалки. -->
+        <activity
+            android:name=".ui.rating.RatingSurveyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Bibliarium" />
+
         <activity
             android:name=".reader.ReaderActivity"
             android:exported="false"

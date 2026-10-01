@@ -70,6 +70,25 @@
     <string name="card_delete_title">Удалить книгу?</string>
     <string name="card_delete_message">«%1$s» и её файл будут стёрты с телефона.</string>
     <string name="card_delete">Удалить</string>
+
+    <!-- Опрос после прочтения и оценка книги. -->
+    <string name="survey_title">Книга прочитана</string>
+    <string name="survey_useful">Насколько книга была полезна?</string>
+    <string name="survey_clarity">Понятно ли написано?</string>
+    <string name="survey_novelty">Много ли нового узнали?</string>
+    <string name="survey_engagement">Хотелось читать дальше?</string>
+    <string name="survey_note">Что осталось от книги</string>
+    <string name="survey_save">Сохранить</string>
+    <string name="survey_skip">Пропустить</string>
+    <string name="card_rating">оценка</string>
+    <string name="card_rate">Оценить книгу</string>
+    <string name="card_rate_change">Изменить оценку</string>
+    <string name="card_rating_breakdown">Как я оценил</string>
+    <string name="card_rating_useful">Польза</string>
+    <string name="card_rating_clarity">Ясность</string>
+    <string name="card_rating_novelty">Новизна</string>
+    <string name="card_rating_engagement">Удержание</string>
+    <string name="shelf_filter_loved">Любимые</string>
     <string name="library_delete">Удалить</string>
     <string name="library_no_author">Автор не указан</string>
     <string name="library_importing">Добавляем книгу…</string>

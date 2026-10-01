@@ -18,6 +18,7 @@ import com.bibliarium.app.reader.ReaderActivity
 import com.bibliarium.app.ui.add.AddBookScreen
 import com.bibliarium.app.ui.book.BookCardScreen
 import com.bibliarium.app.ui.book.BookCardViewModel
+import com.bibliarium.app.ui.rating.RatingSurveyActivity
 import com.bibliarium.app.ui.library.LibraryScreen
 import com.bibliarium.app.ui.library.LibraryViewModel
 import com.bibliarium.app.ui.scan.ScanScreen
@@ -112,6 +113,9 @@ private fun BibliariumApp(container: AppContainer) {
                         context.startActivity(
                             ReaderActivity.intent(context, bookId, locator),
                         )
+                    },
+                    onRate = {
+                        context.startActivity(RatingSurveyActivity.intent(context, bookId))
                     },
                 )
             }

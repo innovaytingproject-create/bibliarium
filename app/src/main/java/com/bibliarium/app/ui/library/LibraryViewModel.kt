@@ -11,7 +11,9 @@ import com.bibliarium.app.data.importer.ImportException
 import com.bibliarium.app.data.importer.ImportFailure
 import com.bibliarium.app.data.settings.AppSettings
 import com.bibliarium.app.data.store.BookStore
+import com.bibliarium.app.data.store.RatingStore
 import com.bibliarium.app.domain.Book
+import com.bibliarium.app.domain.BookRating
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,10 +33,15 @@ sealed interface LibraryMessage {
 class LibraryViewModel(
     private val bookStore: BookStore,
     private val settings: AppSettings,
+    private val ratingStore: RatingStore,
 ) : ViewModel() {
 
     val books: StateFlow<List<Book>> = bookStore.observeBooks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Оценки книг: по ним полка строит «Любимые» и порядок прочитанного. */
+    val ratings: StateFlow<Map<String, BookRating>> = ratingStore.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _isImporting = MutableStateFlow(false)
     val isImporting: StateFlow<Boolean> = _isImporting.asStateFlow()
@@ -104,7 +111,13 @@ class LibraryViewModel(
         private const val METADATA_PASS = 1
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(container.bookStore, container.settings) }
+            initializer {
+                LibraryViewModel(
+                    bookStore = container.bookStore,
+                    settings = container.settings,
+                    ratingStore = container.ratingStore,
+                )
+            }
         }
     }
 }

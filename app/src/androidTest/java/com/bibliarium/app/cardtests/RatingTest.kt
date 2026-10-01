@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -161,24 +162,23 @@ class RatingTest {
         // Название книги есть и в карточке, поэтому ждать его бесполезно:
         // ожидание возвращалось мгновенно, а тап уходил ещё в карточку.
         // Ждём то, что бывает только в читалке, — текст самой книги.
-        assertTrue(
-            "Читалка не открылась. На экране: ${visibleText()}",
-            device.wait(Until.hasObject(By.textContains("абзац")), TIMEOUT),
-        )
+        if (!device.wait(Until.hasObject(By.textContains("абзац")), TIMEOUT)) {
+            fail("Читалка не открылась. На экране: ${visibleText()}")
+        }
 
         // Долистать всю книгу тапами — это сотня нажатий: в главе
         // семнадцать страниц. Поэтому прыгаем оглавлением в последнюю главу
         // и дальше листаем руками, как сделал бы человек, которому осталось
         // дочитать немного.
         val toc = showPanels()
-        assertNotNull("В читалке нет кнопки оглавления: ${visibleText()}", toc)
-        toc!!.click()
+            ?: throw AssertionError("В читалке нет кнопки оглавления: ${visibleText()}")
+        toc.click()
 
         // Берём последнюю главу списка, а не главу с заданным названием:
         // проверка не должна знать, как называются главы в книге.
         device.wait(Until.hasObject(By.textStartsWith("Глава")), TIMEOUT)
         val chapters = device.findObjects(By.textStartsWith("Глава"))
-        assertTrue("В оглавлении нет глав. На экране: ${visibleText()}", chapters.isNotEmpty())
+        if (chapters.isEmpty()) fail("В оглавлении нет глав. На экране: ${visibleText()}")
         chapters.last().click()
         device.waitForIdle()
 
@@ -235,13 +235,25 @@ class RatingTest {
         return null
     }
 
-    /** Что сейчас на экране — чтобы падение само говорило, где оно случилось. */
+    /**
+     * Что сейчас на экране — чтобы падение само говорило, где оно случилось.
+     *
+     * Вызывается только когда проверка уже падает, и ровно поэтому читать
+     * узлы здесь надо осторожно: экран в этот момент меняется, и половина
+     * найденных узлов успевает устареть, пока мы спрашиваем их текст.
+     */
     private fun visibleText(): String =
-        device.findObjects(By.textContains(""))
-            .mapNotNull { it.text?.trim()?.takeIf { text -> text.isNotEmpty() } }
-            .distinct()
-            .take(VISIBLE_TEXTS)
-            .joinToString(" | ")
+        runCatching {
+            device.findObjects(By.textContains(""))
+                .mapNotNull { node ->
+                    runCatching { node.text }.getOrNull()
+                        ?.trim()
+                        ?.takeIf { text -> text.isNotEmpty() }
+                }
+                .distinct()
+                .take(VISIBLE_TEXTS)
+                .joinToString(" | ")
+        }.getOrElse { "прочитать экран не удалось: ${it.javaClass.simpleName}" }
 
     private fun tapCenter() {
         device.click(device.displayWidth / 2, device.displayHeight / 2)

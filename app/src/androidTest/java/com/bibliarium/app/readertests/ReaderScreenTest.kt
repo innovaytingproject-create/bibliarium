@@ -12,6 +12,7 @@ import com.bibliarium.app.TestArtifacts
 import com.bibliarium.app.appContainer
 import com.bibliarium.app.domain.Book
 import com.bibliarium.app.reader.ReaderActivity
+import com.bibliarium.app.reader.ReaderTheme
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -42,7 +43,12 @@ class ReaderScreenTest {
     fun tearDown() {
         scenario?.close()
         scenario = null
-        runBlocking { imported.forEach { store.delete(it) } }
+        runBlocking {
+            imported.forEach { store.delete(it) }
+            // Тема чтения живёт в настройках и переживает закрытие читалки:
+            // без возврата к светлой следующая проверка снимала бы сепию.
+            context.appContainer.readerSettings.saveTheme(ReaderTheme.LIGHT)
+        }
         imported.clear()
         Shell.run("cmd uimode night no")
     }
@@ -136,6 +142,50 @@ class ReaderScreenTest {
         )
     }
 
+    /**
+     * Те же четыре состояния, но в тёмной теме — в макете это второй ряд.
+     * Снимки уходят в артефакты парами к светлым, чтобы сравнить с макетом.
+     */
+    @Test
+    fun fourStatesInDarkTheme() {
+        openReader(importAsset("book_a.epub"))
+        awaitText("Книга А")
+        tapCenter()
+
+        device.wait(Until.findObject(By.desc("Настройки")), TIMEOUT).click()
+        device.wait(Until.hasObject(By.text("Шрифт")), TIMEOUT)
+        device.findObject(By.desc("Тёмная тема")).click()
+        device.waitForIdle()
+        settledScreenshot("reader-dark-3-settings")
+
+        device.findObject(By.desc("Закрыть")).click()
+        device.waitForIdle()
+        Thread.sleep(SETTLE_MS)
+        settledScreenshot("reader-dark-2-panels-shown")
+
+        // Страница обязана стать тёмной, а не только лист настроек.
+        val page = colorAt(PAGE_PROBE)
+        assertTrue(
+            "Страница осталась светлой после выбора тёмной темы: яркость ${brightnessOf(page)}",
+            brightnessOf(page) < DARK_LIMIT,
+        )
+
+        tapCenter()
+        assertTrue(
+            "Панели не спрятались в тёмной теме",
+            device.wait(Until.gone(By.desc("Оглавление")), TIMEOUT),
+        )
+        settledScreenshot("reader-dark-1-panels-hidden")
+
+        tapCenter()
+        device.wait(Until.findObject(By.desc("Оглавление")), TIMEOUT).click()
+        assertTrue(
+            "Оглавление не открылось в тёмной теме",
+            device.wait(Until.hasObject(By.textContains("Глава")), TIMEOUT),
+        )
+        settledScreenshot("reader-dark-4-toc")
+    }
+
     @Test
     fun searchFindsWordAndOpensIt() {
         openReader(importAsset("book_a.epub"))
@@ -213,12 +263,19 @@ class ReaderScreenTest {
     }
 
     /** Цвет пикселя посреди страницы: по нему видно смену темы чтения. */
-    private fun centerColor(): Int {
+    private fun centerColor(): Int = colorAt(0.5f)
+
+    /** Цвет пикселя на заданной высоте экрана — там, где видна страница книги. */
+    private fun colorAt(heightFraction: Float): Int {
         val shot = instrumentation.uiAutomation.takeScreenshot() ?: return 0
-        val color = shot.getPixel(shot.width / 2, shot.height / 2)
+        val color = shot.getPixel(shot.width / 2, (shot.height * heightFraction).toInt())
         shot.recycle()
         return color
     }
+
+    /** Насколько пиксель светлый: 0 — чёрный, 255 — белый. */
+    private fun brightnessOf(color: Int): Int =
+        ((color shr 16 and 0xFF) + (color shr 8 and 0xFF) + (color and 0xFF)) / 3
 
     private fun settledScreenshot(name: String) {
         device.waitForIdle()
@@ -230,6 +287,12 @@ class ReaderScreenTest {
         const val TIMEOUT = 20_000L
         const val SEARCH_TIMEOUT = 30_000L
         const val SETTLE_MS = 900L
+
+        /** Где брать цвет страницы: ниже шапки, но выше листа настроек. */
+        const val PAGE_PROBE = 0.25f
+
+        /** Темнее этого — уже тёмная тема, а не светлая. */
+        const val DARK_LIMIT = 110
 
         /** Верхняя десятая часть экрана — там живут часы и значки. */
         const val STATUS_BAND = 10

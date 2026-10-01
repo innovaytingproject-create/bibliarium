@@ -33,8 +33,6 @@ sealed interface ReaderState {
 /** Что показывает нижняя панель. */
 data class ReadingPosition(
     val progress: Float,
-    /** Название текущей главы — его показывает верхняя панель. */
-    val chapter: String? = null,
     /** Оценка оставшегося времени в минутах; null, пока считать не из чего. */
     val minutesLeft: Int?,
     /**
@@ -44,6 +42,11 @@ data class ReadingPosition(
      */
     val page: Int? = null,
     val totalPages: Int? = null,
+    /**
+     * Название текущей главы — его показывает верхняя панель. Стоит
+     * последним: выше идут поля, которые передаются по порядку.
+     */
+    val chapter: String? = null,
 )
 
 @OptIn(ExperimentalReadiumApi::class)

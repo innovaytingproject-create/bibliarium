@@ -90,6 +90,9 @@ class ReaderViewModel(
 
     private var bookId: String? = null
 
+    /** Последнее место чтения: его же сохраняем, когда книга дочитана. */
+    private var lastLocator: String? = null
+
     /**
      * [locatorOverride] — место, заданное снаружи: так из оглавления
      * в карточке книга открывается сразу на нужной главе, а не там, где
@@ -160,9 +163,31 @@ class ReaderViewModel(
             "книга $id: прогресс ${(progress * 100).toInt()} %, локатор ${locator.serialize()}",
         )
 
+        lastLocator = locator.serialize()
         viewModelScope.launch {
-            bookStore.saveProgress(id, progress, locator.serialize())
+            bookStore.saveProgress(id, progress, lastLocator)
             if (progress >= FINISHED) askAboutBook(id)
+        }
+    }
+
+    /**
+     * Листать дальше некуда — книга дочитана.
+     *
+     * По доле этого не поймать: Readium считает её по началу видимой
+     * страницы, и на последней странице выходит 98–99 %, а не сто.
+     * Поэтому конец определяется тем, чем он и является для человека:
+     * перелистнуть больше нельзя.
+     */
+    fun onReachedEnd() {
+        val id = bookId ?: return
+        if (_position.value.progress >= FINISHED) return
+
+        _position.value = _position.value.copy(progress = 1f)
+        viewModelScope.launch {
+            // Место чтения остаётся прежним: человек стоит на последней
+            // странице, и возвращаться он должен туда же.
+            bookStore.saveProgress(id, 1f, lastLocator)
+            askAboutBook(id)
         }
     }
 

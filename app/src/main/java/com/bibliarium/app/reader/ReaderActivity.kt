@@ -372,6 +372,10 @@ class ReaderActivity : AppCompatActivity() {
                         }
                     }
 
+                    // Листание вперёд не сработало — значит дальше страниц нет
+                    // и книга дочитана.
+                    if (!result && x > width * 2 / 3) viewModel.onReachedEnd()
+
                     // Следы жеста: если листание однажды снова перестанет
                     // работать, искать причину будет по чему.
                     android.util.Log.i(

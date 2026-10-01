@@ -158,13 +158,10 @@ class RatingTest {
         scrollTo("читать")!!.click()
         device.wait(Until.hasObject(By.textContains("Книга А")), TIMEOUT)
 
-        // Панели открыты сразу после запуска книги: оттуда и оглавление.
-        device.wait(Until.findObject(By.text("Оглавление")), TIMEOUT).click()
-        device.wait(Until.findObject(By.text("Глава 6")), TIMEOUT).click()
-        device.waitForIdle()
-
+        // Листаем до самого конца тапами по правой трети — так же, как
+        // человек. Оглавлением не пользуемся: в нём шесть глав, и нужная
+        // строка может не попасть на экран.
         repeat(MAX_TAPS) {
-            if (device.findObject(By.textContains("100 %")) != null) return@repeat
             device.click(device.displayWidth * 5 / 6, device.displayHeight / 2)
             device.waitForIdle()
             Thread.sleep(TAP_SETTLE_MS)
@@ -212,7 +209,7 @@ class RatingTest {
         const val SETTLE_MS = 1_000L
         const val SCROLL_SETTLE_MS = 300L
         const val MAX_SCROLLS = 6
-        const val MAX_TAPS = 12
-        const val TAP_SETTLE_MS = 600L
+        const val MAX_TAPS = 40
+        const val TAP_SETTLE_MS = 450L
     }
 }

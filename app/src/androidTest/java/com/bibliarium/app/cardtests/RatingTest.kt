@@ -158,9 +158,15 @@ class RatingTest {
         scrollTo("читать")!!.click()
         device.wait(Until.hasObject(By.textContains("Книга А")), TIMEOUT)
 
-        // Листаем до самого конца тапами по правой трети — так же, как
-        // человек. Оглавлением не пользуемся: в нём шесть глав, и нужная
-        // строка может не попасть на экран.
+        // Долистать всю книгу тапами — это сотня нажатий: в главе
+        // семнадцать страниц. Поэтому прыгаем оглавлением в последнюю главу
+        // и дальше листаем руками, как сделал бы человек, которому осталось
+        // дочитать немного.
+        tapCenter()
+        device.wait(Until.findObject(By.desc("Оглавление")), TIMEOUT).click()
+        device.wait(Until.findObject(By.text("Глава 6")), TIMEOUT).click()
+        device.waitForIdle()
+
         repeat(MAX_TAPS) {
             device.click(device.displayWidth * 5 / 6, device.displayHeight / 2)
             device.waitForIdle()
@@ -187,6 +193,12 @@ class RatingTest {
         device.wait(Until.hasObject(By.text(book.title)), TIMEOUT)
     }
 
+    private fun tapCenter() {
+        device.click(device.displayWidth / 2, device.displayHeight / 2)
+        device.waitForIdle()
+        Thread.sleep(TAP_SETTLE_MS)
+    }
+
     private fun scrollTo(text: String) = device.run {
         repeat(MAX_SCROLLS) {
             findObject(By.textContains(text))?.let { return@run it }
@@ -209,7 +221,7 @@ class RatingTest {
         const val SETTLE_MS = 1_000L
         const val SCROLL_SETTLE_MS = 300L
         const val MAX_SCROLLS = 6
-        const val MAX_TAPS = 40
+        const val MAX_TAPS = 25
         const val TAP_SETTLE_MS = 450L
     }
 }

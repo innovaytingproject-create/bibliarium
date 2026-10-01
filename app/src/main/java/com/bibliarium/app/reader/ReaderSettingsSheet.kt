@@ -156,6 +156,16 @@ fun ReaderSettingsSheet(
                 activeTrackColor = palette.accent,
                 inactiveTrackColor = palette.line,
             ),
+            track = { state ->
+                SliderDefaults.Track(
+                    sliderState = state,
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = palette.accent,
+                        inactiveTrackColor = palette.line,
+                    ),
+                    drawStopIndicator = null,
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = "Яркость" },
@@ -356,8 +366,8 @@ private const val GAP = 14
 private const val LABEL_GAP = 6
 private const val TITLE_SIZE = 17
 private const val LABEL_SIZE = 12
-private const val CHIP_SIZE = 14
-private const val SEGMENT_SIZE = 13
+private const val CHIP_SIZE = 13
+private const val SEGMENT_SIZE = 11
 private const val CHIP_HEIGHT = 44
 private const val CHIP_CORNER = 12
 private const val SEGMENT_CORNER = 9

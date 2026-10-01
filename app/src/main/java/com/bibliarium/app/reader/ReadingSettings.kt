@@ -22,7 +22,7 @@ enum class ReadingFont(val title: String) {
     LORA("Lora"),
     LITERATA("Literata"),
     PLEX_SANS("Plex Sans"),
-    SYSTEM("Системный"),
+    SYSTEM("Система"),
 }
 
 enum class ReadingMargins(val multiplier: Double) {

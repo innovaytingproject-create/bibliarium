@@ -162,6 +162,8 @@ class ProgressTest {
     }
 
     private fun place(): Place {
+        // Панели спрятаны, пока их не позовут: процент живёт на нижней.
+        tapCenter()
         val label = device.wait(Until.findObject(By.textContains("%")), OPEN_TIMEOUT)?.text
             ?: return Place("нижней панели нет", -1)
         val percent = PERCENT.find(label)?.groupValues?.get(1)?.toIntOrNull() ?: -1
@@ -184,6 +186,12 @@ class ProgressTest {
 
     private fun awaitText(text: String) {
         device.wait(Until.hasObject(By.textContains(text)), OPEN_TIMEOUT)
+    }
+
+    private fun tapCenter() {
+        device.click(device.displayWidth / 2, device.displayHeight / 2)
+        device.waitForIdle()
+        Thread.sleep(TAP_SETTLE_MS)
     }
 
     private fun tapRightThird() {

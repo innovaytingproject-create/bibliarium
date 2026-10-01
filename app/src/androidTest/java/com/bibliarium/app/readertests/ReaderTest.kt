@@ -70,10 +70,12 @@ class ReaderTest {
     @Test
     fun openedPdfIsReadyToRead() {
         openReader(importAsset("sample.pdf"))
+        device.wait(Until.hasObject(By.textContains("Page")), OPEN_TIMEOUT)
+        tapCenter()
 
         assertNotNull(
             "PDF не открылся: панели не появились",
-            device.wait(Until.findObject(By.text("Назад")), OPEN_TIMEOUT),
+            device.wait(Until.findObject(By.desc("Назад")), OPEN_TIMEOUT),
         )
         assertNull(
             "PDF открылся с ошибкой",
@@ -91,38 +93,39 @@ class ReaderTest {
     }
 
     @Test
-    fun panelsAreVisibleRightAfterOpening() {
+    fun panelsAppearAfterTapInCenter() {
         openReader(importAsset("sample.epub"))
         awaitText("Глава 1")
 
-        // Из книги обязан быть выход сразу, а не после угаданного жеста.
+        // Панели спрятаны, пока их не позовут: в макете это первое состояние.
+        tapCenter()
+
         assertNotNull(
-            "Кнопки «Назад» нет на экране открытой книги",
-            device.wait(Until.findObject(By.text("Назад")), PANEL_TIMEOUT),
+            "Кнопки «Назад» нет после тапа по центру",
+            device.wait(Until.findObject(By.desc("Назад")), PANEL_TIMEOUT),
         )
-        assertNotNull("Кнопки оглавления нет", device.findObject(By.text("Оглавление")))
-        assertNotNull("Кнопки настроек нет", device.findObject(By.text("Настройки")))
+        assertNotNull("Кнопки оглавления нет", device.findObject(By.desc("Оглавление")))
+        assertNotNull("Кнопки настроек нет", device.findObject(By.desc("Настройки")))
         settledScreenshot("reader-panels-visible")
     }
 
     @Test
-    fun tapInCenterHidesAndShowsPanels() {
+    fun tapInCenterShowsAndHidesPanels() {
         openReader(importAsset("sample.epub"))
         awaitText("Глава 1")
-        awaitText("Назад")
 
         tapCenter()
         assertTrue(
-            "Тап по центру не спрятал панели",
-            device.wait(Until.gone(By.text("Назад")), PANEL_TIMEOUT),
+            "Тап по центру не показал панели",
+            device.wait(Until.hasObject(By.desc("Назад")), PANEL_TIMEOUT),
+        )
+
+        tapCenter()
+        assertTrue(
+            "Повторный тап по центру не спрятал панели",
+            device.wait(Until.gone(By.desc("Назад")), PANEL_TIMEOUT),
         )
         settledScreenshot("reader-panels-hidden")
-
-        tapCenter()
-        assertTrue(
-            "Повторный тап по центру не вернул панели",
-            device.wait(Until.hasObject(By.text("Назад")), PANEL_TIMEOUT),
-        )
     }
 
     @Test
@@ -130,10 +133,6 @@ class ReaderTest {
         val book = importAsset("sample.epub")
         openReader(book)
         awaitText("Глава 1")
-
-        // Панели убираем: они перекрывают края, по которым листают.
-        tapCenter()
-        device.wait(Until.gone(By.text("Назад")), PANEL_TIMEOUT)
 
         // Ждём, а не смотрим сразу: после того как панели спрятались, страница
         // перекладывается, и на миг на ней нет ни строчки.
@@ -168,7 +167,8 @@ class ReaderTest {
         openReader(importAsset("sample.epub"))
         awaitText("Глава 1")
 
-        device.wait(Until.findObject(By.text("Назад")), PANEL_TIMEOUT).click()
+        tapCenter()
+        device.wait(Until.findObject(By.desc("Назад")), PANEL_TIMEOUT).click()
 
         assertTrue(
             "После кнопки «Назад» книга осталась на экране",
@@ -181,7 +181,8 @@ class ReaderTest {
         openReader(importAsset("sample.epub"))
         awaitText("Глава 1")
 
-        device.wait(Until.findObject(By.text("Оглавление")), PANEL_TIMEOUT).click()
+        tapCenter()
+        device.wait(Until.findObject(By.desc("Оглавление")), PANEL_TIMEOUT).click()
         assertTrue(
             "Оглавление не открылось",
             device.wait(Until.hasObject(By.textContains("Глава")), PANEL_TIMEOUT),
@@ -215,10 +216,6 @@ class ReaderTest {
         settledScreenshot("reader-fb2-open")
         assertTrue("Сконвертированный FB2 не открылся. На экране: ${screenMessage()}", opened)
 
-        // Панели убираем: они перекрывают края, по которым листают.
-        tapCenter()
-        device.wait(Until.gone(By.text("Назад")), PANEL_TIMEOUT)
-
         var reachedEnd = false
         repeat(MAX_PAGES) {
             if (!reachedEnd) {
@@ -244,6 +241,8 @@ class ReaderTest {
     @Test
     fun tapOnRightThirdTurnsPdfPage() {
         openReader(importAsset("sample.pdf"))
+        device.wait(Until.hasObject(By.textContains("Page")), OPEN_TIMEOUT)
+        tapCenter()
 
         val label = device.wait(Until.findObject(By.textStartsWith("Страница")), OPEN_TIMEOUT)
         assertNotNull("Номер страницы PDF не показан. На экране: ${screenMessage()}", label)
@@ -265,14 +264,12 @@ class ReaderTest {
     @Test
     fun pdfBookmarksOpenChosenChapter() {
         openReader(importAsset("sample_outline.pdf"))
+        device.wait(Until.hasObject(By.textContains("Page")), OPEN_TIMEOUT)
+        tapCenter()
         awaitPageLabel()
 
-        val button = device.findObject(By.text("Оглавление"))
-        assertNotNull(
-            "Кнопки «Оглавление» нет — закладки PDF не прочитались. " +
-                "Кнопка сейчас: ${tocButtonText()}",
-            button,
-        )
+        val button = device.findObject(By.desc("Оглавление"))
+        assertNotNull("Кнопки оглавления нет на панели", button)
         button.click()
 
         assertTrue(
@@ -297,14 +294,13 @@ class ReaderTest {
     @Test
     fun pdfWithoutBookmarksShowsPageGrid() {
         openReader(importAsset("sample.pdf"))
+        device.wait(Until.hasObject(By.textContains("Page")), OPEN_TIMEOUT)
+        tapCenter()
         awaitPageLabel()
 
-        val button = device.findObject(By.text("Страницы"))
-        assertNotNull(
-            "Кнопки «Страницы» нет, хотя закладок в книге нет. " +
-                "Кнопка сейчас: ${tocButtonText()}",
-            button,
-        )
+        // У PDF без закладок тот же значок открывает сетку страниц.
+        val button = device.findObject(By.desc("Оглавление"))
+        assertNotNull("Кнопки оглавления нет на панели", button)
         button.click()
 
         assertTrue(
@@ -367,11 +363,6 @@ class ReaderTest {
 
     private fun pageLabelText(): String =
         device.findObject(By.textStartsWith("Страница"))?.text ?: "номера страницы нет"
-
-    private fun tocButtonText(): String =
-        device.findObject(By.text("Оглавление"))?.text
-            ?: device.findObject(By.text("Страницы"))?.text
-            ?: "кнопки нет вовсе"
 
     /** Что видно человеку вместо книги: текст ошибки, если он на экране. */
     private fun screenMessage(): String =

@@ -144,11 +144,11 @@ class ReaderScreenTest {
 
         device.wait(Until.findObject(By.desc("Поиск")), TIMEOUT).click()
         device.wait(Until.findObject(By.textContains("Поиск по книге")), TIMEOUT)
-            .text = "трамваев"
+            .text = "перелистывание"
 
         assertTrue(
             "Поиск ничего не нашёл",
-            device.wait(Until.hasObject(By.textContains("трамваев")), SEARCH_TIMEOUT),
+            device.wait(Until.hasObject(By.textContains("перелистывание")), SEARCH_TIMEOUT),
         )
         settledScreenshot("reader-search")
     }

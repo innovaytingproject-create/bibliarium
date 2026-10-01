@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -43,7 +44,7 @@ fun ReaderToc(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         // Остальная страница затемняется и закрывает оглавление по тапу.
         Box(
             modifier = Modifier
@@ -61,7 +62,7 @@ fun ReaderToc(
 
         Column(
             modifier = Modifier
-                .width(TOC_WIDTH.dp)
+                .width(if (maxWidth * NARROW_SHARE < TOC_WIDTH.dp) maxWidth * NARROW_SHARE else TOC_WIDTH.dp)
                 .fillMaxHeight()
                 .background(palette.surface)
                 .padding(horizontal = SIDE.dp),
@@ -148,6 +149,9 @@ private fun TocRow(
 private val SCRIM = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)
 
 private const val TOC_WIDTH = 330
+
+/** На узком экране панель занимает не больше этой доли ширины. */
+private const val NARROW_SHARE = 0.85f
 private const val SIDE = 16
 private const val TOP = 48
 private const val GAP = 12

@@ -7,7 +7,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.bibliarium.app.AppContainer
 import com.bibliarium.app.data.settings.ReaderSettingsStore
+import com.bibliarium.app.domain.Highlight
 import com.bibliarium.app.data.store.BookStore
+import com.bibliarium.app.data.store.HighlightStore
 import com.bibliarium.app.data.store.RatingStore
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -58,7 +60,12 @@ class ReaderViewModel(
     private val opener: ReaderContentOpener,
     private val settingsStore: ReaderSettingsStore,
     private val ratingStore: RatingStore,
+    private val highlightStore: HighlightStore,
 ) : ViewModel() {
+
+    /** Выделения в этой книге: по ним рисуется подсветка в тексте. */
+    private val _highlights = MutableStateFlow<List<Highlight>>(emptyList())
+    val highlights: StateFlow<List<Highlight>> = _highlights.asStateFlow()
 
     /**
      * Книга дочитана, и опрос по ней ещё не показывали.
@@ -154,6 +161,10 @@ class ReaderViewModel(
             if (book == null) {
                 _state.value = ReaderState.Failed(ReaderOpenError.FileMissing)
                 return@launch
+            }
+
+            viewModelScope.launch {
+                highlightStore.observeForBook(id).collect { _highlights.value = it }
             }
 
             opener.open(book, locatorOverride).fold(
@@ -286,6 +297,30 @@ class ReaderViewModel(
             }
             iterator.close()
             _searching.value = false
+        }
+    }
+
+    /**
+     * Сохранить выделенный кусок книги.
+     *
+     * Текст хранится вместе с локатором: по локатору выделение потом
+     * подсвечивается в книге, а по тексту его видно в списке цитат, даже
+     * если книга переехала или настройки изменились.
+     */
+    fun addHighlight(text: String, locator: Locator, note: String? = null) {
+        val id = bookId ?: return
+        viewModelScope.launch {
+            highlightStore.add(
+                Highlight(
+                    id = java.util.UUID.randomUUID().toString(),
+                    bookId = id,
+                    text = text,
+                    note = note,
+                    locator = locator.serialize(),
+                    color = HIGHLIGHT_COLOR,
+                    createdAt = System.currentTimeMillis(),
+                ),
+            )
         }
     }
 
@@ -501,6 +536,9 @@ class ReaderViewModel(
         private const val FINISHED = 0.99f
         private const val DEFAULT_LINE_HEIGHT = 1.7
         private const val DEFAULT_PAGE_MARGINS = 1.0
+        /** Цвет выделения — акцент темы Archive; подложка рисуется прозрачной. */
+        private const val HIGHLIGHT_COLOR = 0xFFB44D38.toInt()
+
         /** Больше сотни находок человеку всё равно не пролистать. */
         private const val MAX_HITS = 100
         private const val MIN_FONT_SIZE = 14
@@ -519,6 +557,7 @@ class ReaderViewModel(
                     opener = container.readerContentOpener,
                     settingsStore = container.readerSettings,
                     ratingStore = container.ratingStore,
+                    highlightStore = container.highlightStore,
                 )
             }
         }

@@ -50,7 +50,11 @@ import kotlinx.coroutines.launch
 import org.readium.adapter.pdfium.navigator.PdfiumEngineProvider
 import org.readium.adapter.pdfium.navigator.PdfiumNavigatorFactory
 import org.readium.adapter.pdfium.navigator.PdfiumNavigatorFragment
+import org.readium.r2.navigator.DecorableNavigator
+import org.readium.r2.navigator.Decoration
 import org.readium.r2.navigator.Navigator
+import org.readium.r2.navigator.SelectableNavigator
+import org.readium.r2.navigator.Selection
 import org.readium.r2.navigator.OverflowableNavigator
 import org.readium.r2.navigator.VisualNavigator
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
@@ -83,6 +87,8 @@ class ReaderActivity : AppCompatActivity() {
     private var pdfView: PDFView? = null
     private var pdfThumbnails: PdfPageThumbnails? = null
     private var content: ReaderContent? = null
+    private var selectedText: String? = null
+    private var currentSelection: Selection? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Намеренно не отдаём системе сохранённое состояние фрагментов:
@@ -394,6 +400,8 @@ class ReaderActivity : AppCompatActivity() {
         attachGestures(fragment)
         observeLocator(fragment as VisualNavigator)
         observePreferences(content, fragment)
+        observeHighlights(fragment)
+        rememberSelection(fragment)
     }
 
     private fun installEpubNavigator(content: ReaderContent): Fragment {
@@ -401,7 +409,18 @@ class ReaderActivity : AppCompatActivity() {
         supportFragmentManager.fragmentFactory = factory.createFragmentFactory(
             initialLocator = content.initialLocator,
             initialPreferences = viewModel.epubPreferences.value,
-            configuration = EpubNavigatorFragment.Configuration { declareReadingFonts() },
+            configuration = EpubNavigatorFragment.Configuration {
+                declareReadingFonts()
+                // Своё меню над выделением: человеку нужно оставить кусок
+                // в книге, а не просто скопировать его.
+                selectionActionModeCallback = ReaderSelectionMenu(
+                    context = this@ReaderActivity,
+                    onHighlight = { saveSelection(note = null) },
+                    onNote = { askForNote() },
+                    onShare = { shareSelection() },
+                    selectedText = { selectedText },
+                )
+            },
         )
         supportFragmentManager.commitNow {
             replace(R.id.reader_container, EpubNavigatorFragment::class.java, Bundle(), TAG)
@@ -478,6 +497,88 @@ class ReaderActivity : AppCompatActivity() {
                 }
             },
         )
+    }
+
+    /**
+     * Подсветка выделенных кусков.
+     *
+     * Рисует её сам навигатор: он знает, где в разложенной странице лежит
+     * нужное место. Вид — как в макете: подложка акцентом на 18 % и
+     * подчёркивание им же.
+     */
+    private fun observeHighlights(fragment: Fragment) {
+        val decorable = fragment as? DecorableNavigator ?: return
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.highlights.collectLatest { highlights ->
+                    val decorations = highlights.flatMap { highlight ->
+                        val locator = parseLocator(highlight.locator)
+                            ?: return@flatMap emptyList()
+                        listOf(
+                            Decoration(
+                                id = "${highlight.id}-fill",
+                                locator = locator,
+                                style = Decoration.Style.Highlight(
+                                    tint = highlight.color,
+                                ),
+                            ),
+                            Decoration(
+                                id = "${highlight.id}-line",
+                                locator = locator,
+                                style = Decoration.Style.Underline(tint = highlight.color),
+                            ),
+                        )
+                    }
+                    decorable.applyDecorations(decorations, HIGHLIGHT_GROUP)
+                }
+            }
+        }
+    }
+
+    /**
+     * Что сейчас выделено.
+     *
+     * Меню над выделением живёт в системном ActionMode и работает мгновенно,
+     * а спросить навигатор можно только из корутины, — поэтому выделение
+     * запоминается по мере изменения.
+     */
+    private fun rememberSelection(fragment: Fragment) {
+        val selectable = fragment as? SelectableNavigator ?: return
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    val selection = selectable.currentSelection()
+                    selectedText = selection?.locator?.text?.highlight
+                    currentSelection = selection
+                    kotlinx.coroutines.delay(SELECTION_POLL_MS)
+                }
+            }
+        }
+    }
+
+    private fun saveSelection(note: String?) {
+        val selection = currentSelection ?: return
+        val text = selection.locator.text.highlight ?: return
+        viewModel.addHighlight(text = text, locator = selection.locator, note = note)
+        (navigator as? SelectableNavigator)?.clearSelection()
+    }
+
+    /** Заметка к выделению: сначала спрашиваем текст, потом сохраняем. */
+    private fun askForNote() {
+        val input = android.widget.EditText(this)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reader_note)
+            .setView(input)
+            .setPositiveButton(R.string.card_save) { _, _ ->
+                saveSelection(note = input.text.toString().trim().takeIf { it.isNotEmpty() })
+            }
+            .setNegativeButton(R.string.card_cancel, null)
+            .show()
+    }
+
+    private fun shareSelection() {
+        val text = selectedText ?: return
+        shareText(this, text, content?.book?.title.orEmpty())
     }
 
     private fun observeLocator(navigator: VisualNavigator) {
@@ -654,6 +755,8 @@ class ReaderActivity : AppCompatActivity() {
         private const val GESTURE_TAG = "BibliariumReader"
         private const val MINUTES_IN_HOUR = 60
         private const val PERCENT = 100
+        private const val HIGHLIGHT_GROUP = "highlights"
+        private const val SELECTION_POLL_MS = 300L
 
         /**
          * [locator] задаёт место, с которого открыть книгу: по нему приходят

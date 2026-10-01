@@ -31,10 +31,17 @@ object FileNameCleaner {
         // «Автор - Название»: автора отдаём отдельно, решать, брать ли его,
         // будет вызывающий — у книги уже может быть автор из метаданных.
         if (chunks.size == 2 && looksLikePerson(chunks[0])) {
-            return CleanedName(title = tidy(chunks[1]), author = tidy(chunks[0]))
+            return CleanedName(
+                title = dropServiceWords(tidy(chunks[1])),
+                author = tidy(chunks[0]),
+            )
         }
 
-        return CleanedName(title = tidy(chunks.joinToString(" — ")), author = null)
+        val title = dropServiceWords(tidy(chunks.joinToString(" — ")))
+        return CleanedName(
+            title = title.ifBlank { tidy(chunks.joinToString(" — ")) },
+            author = null,
+        )
     }
 
     /**
@@ -68,6 +75,30 @@ object FileNameCleaner {
         return name
     }
 
+    /**
+     * Служебное слово не всегда отделено тире: «Мастер и Маргарита final»
+     * и «Дюна (1)» — такие же пометки, просто дописанные через пробел.
+     * Снимаем их с краёв, середину не трогаем: там слово может быть частью
+     * названия.
+     */
+    private fun dropServiceWords(value: String): String {
+        var words = value.split(' ').filter { it.isNotBlank() }
+        while (words.isNotEmpty() && isServiceWord(words.last())) {
+            words = words.dropLast(1)
+        }
+        while (words.isNotEmpty() && isServiceWord(words.first())) {
+            words = words.drop(1)
+        }
+        return tidy(words.joinToString(" "))
+    }
+
+    private fun isServiceWord(word: String): Boolean {
+        val lower = word.lowercase().trim(*TRIM_CHARS)
+        if (lower.isEmpty()) return true
+        if (NUMBER_IN_BRACKETS.matches(word.trim())) return true
+        return SERVICE.any { it == lower || it == word.lowercase().trim() }
+    }
+
     private fun isService(chunk: String): Boolean {
         val lower = chunk.lowercase().trim(*TRIM_CHARS)
         if (lower.isEmpty()) return true
@@ -89,6 +120,7 @@ object FileNameCleaner {
 
     private val DASHES = arrayOf(" — ", " – ", " - ", "—", "–")
     private val SPACES = Regex("\\s+")
+    private val NUMBER_IN_BRACKETS = Regex("^[\[(]\d{1,3}[])]$")
     private val NUMBERING = Regex("^\\s*[\\[(]?\\d{1,3}[])]?\\s*[.)\\-–—]?\\s*")
     private val TRIM_CHARS = charArrayOf(' ', '.', ',', '-', '–', '—', '_')
 

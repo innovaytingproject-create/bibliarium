@@ -86,6 +86,7 @@ class SpineProbeTest {
 
         if (stage >= STAGE_SHELF_EMPTY) {
             ShelfContent(
+                ratings = emptyMap(),
                 books = probeBooks(
                     when {
                         stage >= STAGE_SHELF_MANY -> MANY_BOOKS

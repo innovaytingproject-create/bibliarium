@@ -212,6 +212,7 @@ class ShelfProbeTest {
 
             STAGE_SHELF -> ShelfContent(
                 books = books,
+                ratings = emptyMap(),
                 isImporting = false,
                 onOpenBook = {},
                 onMenu = {},

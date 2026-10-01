@@ -195,7 +195,7 @@
     <string name="reader_note">Заметка</string>
     <string name="reader_copy">Копировать</string>
     <string name="reader_share">Поделиться</string>
-    <string name="reader_settings">Настройки</string>
+    <string name="reader_settings">Настройки чтения</string>
     <string name="reader_progress">%1$d %%</string>
     <string name="reader_progress_page">Страница %1$d из %2$d · %3$d %%</string>
     <string name="reader_progress_minutes">%1$d %% · осталось %2$d мин</string>

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,14 +18,17 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -149,28 +153,35 @@ fun ReaderSettingsSheet(
             palette = palette,
             modifier = Modifier.padding(top = GAP.dp),
         )
-        Slider(
-            value = settings.brightness,
-            onValueChange = onBrightness,
-            colors = SliderDefaults.colors(
-                thumbColor = palette.accent,
-                activeTrackColor = palette.accent,
-                inactiveTrackColor = palette.line,
-            ),
-            track = { state ->
-                SliderDefaults.Track(
-                    sliderState = state,
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = palette.accent,
-                        inactiveTrackColor = palette.line,
-                    ),
-                    drawStopIndicator = null,
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Яркость" },
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CHIP_GAP.dp),
+        ) {
+            ReaderGlyph(ReaderIconKind.BRIGHTNESS, palette.textSecondary)
+            Slider(
+                value = settings.brightness,
+                onValueChange = onBrightness,
+                colors = SliderDefaults.colors(
+                    thumbColor = palette.accent,
+                    activeTrackColor = palette.accent,
+                    inactiveTrackColor = palette.line,
+                ),
+                track = { state ->
+                    SliderDefaults.Track(
+                        sliderState = state,
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = palette.accent,
+                            inactiveTrackColor = palette.line,
+                        ),
+                        drawStopIndicator = null,
+                    )
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = "Яркость" },
+            )
+        }
     }
 }
 
@@ -284,31 +295,54 @@ private fun Segments(
     palette: ReaderPalette,
     onPick: (Int) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .height(CHIP_HEIGHT.dp)
-            .clip(RoundedCornerShape(CHIP_CORNER.dp))
-            .background(palette.background),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        options.forEachIndexed { index, option ->
-            val active = index == activeIndex
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(CHIP_HEIGHT.dp)
-                    .padding(SEGMENT_PADDING.dp)
-                    .clip(RoundedCornerShape(SEGMENT_CORNER.dp))
-                    .background(if (active) palette.surface else palette.background)
-                    .clickable { onPick(index) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = option,
-                    style = TextStyle(fontSize = SEGMENT_SIZE.sp),
-                    color = if (active) palette.text else palette.textSecondary,
-                    maxLines = 1,
-                )
+    BoxWithConstraints {
+        // «Средние» и «Широкие» не влезали в треть колонки и обрезались
+        // на полуслове. Размер подбирается по самой длинной подписи, а не
+        // задаётся на глаз: на узком экране и при крупном системном шрифте
+        // слово должно остаться целым.
+        val cell = maxWidth / options.size - (SEGMENT_PADDING * 2).dp
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val fontSize = remember(options, cell, density) {
+            var candidate = SEGMENT_SIZE
+            while (candidate > SEGMENT_MIN_SIZE) {
+                val widest = options.maxOf { option ->
+                    measurer.measure(option, TextStyle(fontSize = candidate.sp)).size.width
+                }
+                if (with(density) { widest.toDp() } <= cell) break
+                candidate--
+            }
+            candidate
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(CHIP_HEIGHT.dp)
+                .clip(RoundedCornerShape(CHIP_CORNER.dp))
+                .background(palette.background),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            options.forEachIndexed { index, option ->
+                val active = index == activeIndex
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(CHIP_HEIGHT.dp)
+                        .padding(SEGMENT_PADDING.dp)
+                        .clip(RoundedCornerShape(SEGMENT_CORNER.dp))
+                        .background(if (active) palette.surface else palette.background)
+                        .clickable { onPick(index) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = option,
+                        style = TextStyle(fontSize = fontSize.sp),
+                        color = if (active) palette.text else palette.textSecondary,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
         }
     }
@@ -369,6 +403,9 @@ private const val TITLE_SIZE = 17
 private const val LABEL_SIZE = 12
 private const val CHIP_SIZE = 13
 private const val SEGMENT_SIZE = 11
+
+/** Мельче этого подпись уже не читается — лучше так, чем обрезок слова. */
+private const val SEGMENT_MIN_SIZE = 8
 private const val CHIP_HEIGHT = 44
 private const val CHIP_CORNER = 12
 private const val SEGMENT_CORNER = 9

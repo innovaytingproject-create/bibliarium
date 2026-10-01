@@ -13,6 +13,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** Значки экрана чтения. Рисуются на Canvas — ни файлов, ни зависимостей. */
 enum class ReaderIconKind {
@@ -23,6 +26,7 @@ enum class ReaderIconKind {
     SETTINGS,
     SEARCH,
     CLOSE,
+    BRIGHTNESS,
 }
 
 /**
@@ -126,6 +130,33 @@ private fun DrawScope.drawGlyph(icon: ReaderIconKind, tint: Color, inset: Float)
             drawLine(tint, Offset(left, top), Offset(right, bottom), stroke.width)
             drawLine(tint, Offset(right, top), Offset(left, bottom), stroke.width)
         }
+
+        // Яркость: солнце с лучами, как в макете рядом с ползунком.
+        ReaderIconKind.BRIGHTNESS -> {
+            drawCircle(tint, side * SUN_RADIUS, Offset(centerX, centerY), style = stroke)
+            repeat(SUN_RAYS) { index ->
+                val angle = index * (2 * PI / SUN_RAYS)
+                val dx = cos(angle).toFloat()
+                val dy = sin(angle).toFloat()
+                drawLine(
+                    tint,
+                    Offset(centerX + dx * side * RAY_START, centerY + dy * side * RAY_START),
+                    Offset(centerX + dx * side * RAY_END, centerY + dy * side * RAY_END),
+                    stroke.width,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Тот же значок, но без нажатия и без описания: он ничего не делает,
+ * а только подписывает соседний ползунок.
+ */
+@Composable
+fun ReaderGlyph(icon: ReaderIconKind, tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(GLYPH.dp)) {
+        drawGlyph(icon, tint, inset = 0f)
     }
 }
 
@@ -156,3 +187,7 @@ private const val UNDERLINE_WEIGHT = 1.6f
 private const val SEARCH_RADIUS = 0.35f
 private const val SEARCH_TAIL = 1.7f
 private const val PLUS_SHRINK = 0.8f
+private const val SUN_RADIUS = 0.22f
+private const val SUN_RAYS = 8
+private const val RAY_START = 0.33f
+private const val RAY_END = 0.48f

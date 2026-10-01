@@ -284,10 +284,6 @@ class ReaderContentOpener(
         return chain.joinToString(" <- ")
     }
 
-    private fun parseLocator(json: String): Locator? = runCatching {
-        Locator.fromJSON(JSONObject(json))
-    }.getOrNull()
-
     private companion object {
         const val MAX_CAUSE_DEPTH = 5
 
@@ -299,3 +295,8 @@ class ReaderOpenException(val error: ReaderOpenError) : Exception(error.toString
 
 /** Локатор сохраняется в том же JSON, в каком его отдаёт Readium. */
 fun Locator.serialize(): String = toJSON().toString()
+
+/** И читается обратно из него же — например, для перехода к найденному. */
+fun parseLocator(json: String): Locator? = runCatching {
+    Locator.fromJSON(JSONObject(json))
+}.getOrNull()

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.r2.navigator.epub.EpubPreferences
@@ -24,6 +25,7 @@ import org.readium.r2.navigator.preferences.TextAlign
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.services.search.search
 
 sealed interface ReaderState {
     data object Loading : ReaderState
@@ -83,6 +85,17 @@ class ReaderViewModel(
      * Тема чтения. Своя, не общая с приложением: сепия есть только здесь,
      * и переключается она в настройках чтения, а не в системе.
      */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchHits = MutableStateFlow<List<SearchHit>>(emptyList())
+    val searchHits: StateFlow<List<SearchHit>> = _searchHits.asStateFlow()
+
+    private val _searching = MutableStateFlow(false)
+    val searching: StateFlow<Boolean> = _searching.asStateFlow()
+
+    private var searchJob: Job? = null
+
     /** Какая строка оглавления сейчас: по ней подсвечивается текущая глава. */
     private val _tocIndex = MutableStateFlow(0)
     val tocIndex: StateFlow<Int> = _tocIndex.asStateFlow()
@@ -228,6 +241,59 @@ class ReaderViewModel(
         if (rating?.surveyShown == true) return
         ratingStore.markSurveyShown(id)
         _surveyDue.value = id
+    }
+
+    /**
+     * Поиск по книге.
+     *
+     * Ищет сам Readium: он знает, где в книге текст, а где разметка.
+     * Предыдущий поиск отменяется — пока человек дописывает слово, старые
+     * находки уже не нужны.
+     */
+    fun search(query: String) {
+        _searchQuery.value = query
+        searchJob?.cancel()
+        _searchHits.value = emptyList()
+
+        val content = (_state.value as? ReaderState.Ready)?.content ?: return
+        if (query.isBlank()) {
+            _searching.value = false
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            _searching.value = true
+            val iterator = content.publication.search(query)
+            if (iterator == null) {
+                _searching.value = false
+                return@launch
+            }
+
+            val found = mutableListOf<SearchHit>()
+            iterator.forEach { collection ->
+                collection.locators.forEach { locator ->
+                    found += SearchHit(
+                        before = locator.text.before.orEmpty(),
+                        match = locator.text.highlight.orEmpty(),
+                        after = locator.text.after.orEmpty(),
+                        chapter = locator.title?.trim()?.takeIf { it.isNotEmpty() },
+                        locatorJson = locator.serialize(),
+                    )
+                }
+                // Показываем по мере нахождения: ждать конца книги незачем.
+                _searchHits.value = found.toList().take(MAX_HITS)
+                if (found.size >= MAX_HITS) return@forEach
+            }
+            iterator.close()
+            _searching.value = false
+        }
+    }
+
+    fun clearSearch() {
+        searchJob?.cancel()
+        _searchQuery.value = ""
+        _searchHits.value = emptyList()
+        _searching.value = false
     }
 
     fun surveyShown() {
@@ -435,6 +501,8 @@ class ReaderViewModel(
         private const val FINISHED = 0.99f
         private const val DEFAULT_LINE_HEIGHT = 1.7
         private const val DEFAULT_PAGE_MARGINS = 1.0
+        /** Больше сотни находок человеку всё равно не пролистать. */
+        private const val MAX_HITS = 100
         private const val MIN_FONT_SIZE = 14
         private const val MAX_FONT_SIZE = 26
 

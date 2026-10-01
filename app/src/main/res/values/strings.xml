@@ -189,6 +189,8 @@
     <string name="reader_spacing">Интервал</string>
     <string name="reader_theme">Тема</string>
     <string name="reader_brightness">Яркость</string>
+    <string name="reader_search_hint">Поиск по книге</string>
+    <string name="reader_search_empty">Ничего не нашлось</string>
     <string name="reader_settings">Настройки</string>
     <string name="reader_progress">%1$d %%</string>
     <string name="reader_progress_page">Страница %1$d из %2$d · %3$d %%</string>

@@ -137,6 +137,10 @@ class ReaderActivity : AppCompatActivity() {
                     var panelsVisible by remember { mutableStateOf(false) }
                     var settingsOpen by remember { mutableStateOf(false) }
                     var tocOpen by remember { mutableStateOf(false) }
+                    var searchOpen by remember { mutableStateOf(false) }
+                    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+                    val searchHits by viewModel.searchHits.collectAsStateWithLifecycle()
+                    val searching by viewModel.searching.collectAsStateWithLifecycle()
                     val tocIndex by viewModel.tocIndex.collectAsStateWithLifecycle()
                     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
@@ -146,6 +150,7 @@ class ReaderActivity : AppCompatActivity() {
                     panelsState = { panelsVisible }
                     settingsRequest = { settingsOpen = true }
                     tocRequest = { tocOpen = true }
+                    searchRequest = { searchOpen = true }
 
                     // Яркость подсветки ставится окну, а не системе: человек
                     // настраивал систему не для нас.
@@ -180,6 +185,25 @@ class ReaderActivity : AppCompatActivity() {
                                     onSeek = { fraction -> seekTo(current.content, fraction) },
                                     seekHint = { fraction -> seekHint(current.content, fraction) },
                                 )
+
+                                if (searchOpen) {
+                                    ReaderSearch(
+                                        palette = palette,
+                                        query = searchQuery,
+                                        hits = searchHits,
+                                        searching = searching,
+                                        onQuery = viewModel::search,
+                                        onPick = { hit ->
+                                            searchOpen = false
+                                            panelsVisible = false
+                                            goToLocator(hit.locatorJson)
+                                        },
+                                        onClose = {
+                                            searchOpen = false
+                                            viewModel.clearSearch()
+                                        },
+                                    )
+                                }
 
                                 if (tocOpen && current.content.tableOfContents.isNotEmpty()) {
                                     ReaderToc(
@@ -266,7 +290,7 @@ class ReaderActivity : AppCompatActivity() {
         onBookmark = { /* закладки появятся вместе с выделениями */ },
         onHighlight = { /* выделение появится в своей части */ },
         onSettings = { settingsRequest() },
-        onSearch = { /* поиск по книге появится в своей части */ },
+        onSearch = { searchRequest() },
         searchAvailable = content.engine == ReaderEngine.EPUB,
     )
 
@@ -274,6 +298,7 @@ class ReaderActivity : AppCompatActivity() {
     private var panelsRequest: (Boolean) -> Unit = {}
     private var settingsRequest: () -> Unit = {}
     private var tocRequest: () -> Unit = {}
+    private var searchRequest: () -> Unit = {}
     private var panelsState: () -> Boolean = { false }
 
     private fun togglePanels() {
@@ -545,6 +570,12 @@ class ReaderActivity : AppCompatActivity() {
             currentPage = viewModel.position.value.page ?: 1,
             onPick = { page -> jumpToPdfPage(page) },
         ).show()
+    }
+
+    /** Переход на место, найденное поиском. */
+    private fun goToLocator(json: String) {
+        val locator = parseLocator(json) ?: return
+        navigator?.go(locator, animated = false)
     }
 
     /** Возвращает true, если перешли по странице PDF. */

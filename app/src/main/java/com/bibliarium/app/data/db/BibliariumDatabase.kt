@@ -13,7 +13,7 @@ import androidx.sqlite.execSQL
         ShelfEntity::class,
         ImportQueueEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class BibliariumDatabase : RoomDatabase() {
@@ -24,6 +24,21 @@ abstract class BibliariumDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "bibliarium.db"
+
+        /**
+         * Четвёртая версия знает про карточку книги: аннотацию, свою обложку
+         * и то, что название правили руками. Снова миграция, а не
+         * пересоздание: в библиотеке лежат уже добавленные книги.
+         */
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL("ALTER TABLE `books` ADD COLUMN `description` TEXT")
+                connection.execSQL("ALTER TABLE `books` ADD COLUMN `customCoverPath` TEXT")
+                connection.execSQL(
+                    "ALTER TABLE `books` ADD COLUMN `editedByUser` INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
 
         /**
          * Третья версия знает, что книгу могло не получиться открыть, и где

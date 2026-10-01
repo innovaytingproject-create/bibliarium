@@ -8,6 +8,7 @@
     <string name="library_empty_title">Полка пока пуста</string>
     <string name="library_empty_hint">Добавьте книгу в формате EPUB, FB2 или FB2.ZIP — она останется в памяти телефона.</string>
     <string name="library_books_count">Книг: %1$d</string>
+    <string name="library_titles_refreshed">Названия обновлены у книг: %1$d</string>
 
     <!-- Полка: ярусы, фильтры, режимы. Раздел 6 ТЗ. -->
     <string name="shelf_tier">Ярус %1$s</string>

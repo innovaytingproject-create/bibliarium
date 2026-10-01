@@ -41,6 +41,7 @@ class AppContainer(context: Context) {
             .addMigrations(
                 BibliariumDatabase.MIGRATION_1_2,
                 BibliariumDatabase.MIGRATION_2_3,
+                BibliariumDatabase.MIGRATION_3_4,
             )
             .build()
     }
@@ -79,6 +80,7 @@ class AppContainer(context: Context) {
             booksDir = booksDir,
             coversDir = coversDir,
             fb2Converter = Fb2ToEpubConverter(),
+            pdfDocumentFactory = pdfDocumentFactory,
         )
     }
 

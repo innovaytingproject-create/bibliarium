@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -42,6 +43,24 @@ class AppSettings(context: Context) {
         }
 
     suspend fun currentScanRoots(): List<String> = scanRoots.first()
+
+    /**
+     * Какой версией метаданных уже прошлись по библиотеке.
+     *
+     * Книги, добавленные раньше, лежат с именем файла вместо названия.
+     * Перечитать их надо один раз после обновления, а не при каждом запуске:
+     * это открытие каждого файла движком.
+     */
+    private val metadataPassKey = intPreferencesKey("metadata_pass")
+
+    suspend fun metadataPass(): Int =
+        appContext.settingsDataStore.data.first()[metadataPassKey] ?: 0
+
+    suspend fun setMetadataPass(value: Int) {
+        appContext.settingsDataStore.edit { preferences ->
+            preferences[metadataPassKey] = value
+        }
+    }
 
     suspend fun addScanRoot(uri: String) {
         appContext.settingsDataStore.edit { preferences ->

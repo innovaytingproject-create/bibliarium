@@ -16,11 +16,15 @@ import org.xmlpull.v1.XmlPullParser
  */
 object Fb2MetadataReader {
 
+    private val WHITESPACE = Regex("\\s+")
+
     data class Fb2Metadata(
         val title: String?,
         val author: String?,
         val genre: String?,
         val coverId: String?,
+        /** Аннотация из <description>; абзацы разделены пустой строкой. */
+        val description: String? = null,
     )
 
     fun read(file: File): Fb2Metadata = read { file.inputStream() }
@@ -38,6 +42,8 @@ object Fb2MetadataReader {
         var inTitleInfo = false
         var inAuthor = false
         var inCoverpage = false
+        var inAnnotation = false
+        val annotation = StringBuilder()
 
         runCatching {
             openStream().buffered().use { input ->
@@ -50,6 +56,18 @@ object Fb2MetadataReader {
                             "title-info" -> inTitleInfo = true
                             "author" -> if (inTitleInfo) inAuthor = true
                             "coverpage" -> if (inTitleInfo) inCoverpage = true
+                            "annotation" -> if (inTitleInfo) inAnnotation = true
+                            // Абзацы аннотации собираем по одному: внутри
+                            // <annotation> лежит разметка, а человеку нужен текст.
+                            "p" -> if (inAnnotation) {
+                                val text = runCatching { parser.nextText() }.getOrNull()
+                                    ?.replace(WHITESPACE, " ")
+                                    ?.trim()
+                                if (!text.isNullOrEmpty()) {
+                                    if (annotation.isNotEmpty()) annotation.append("\n\n")
+                                    annotation.append(text)
+                                }
+                            }
                             "book-title" -> if (inTitleInfo && title == null) {
                                 title = parser.nextText().trim()
                             }
@@ -72,6 +90,7 @@ object Fb2MetadataReader {
 
                         XmlPullParser.END_TAG -> when (parser.name) {
                             "title-info" -> inTitleInfo = false
+                            "annotation" -> inAnnotation = false
                             "author" -> inAuthor = false
                             "coverpage" -> inCoverpage = false
                             // Дальше идёт тело книги — метаданные закончились.

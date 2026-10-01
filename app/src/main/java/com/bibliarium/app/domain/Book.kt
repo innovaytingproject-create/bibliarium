@@ -21,6 +21,12 @@ data class Book(
     val genre: String?,
     val shelfId: String?,
     val isFavorite: Boolean,
+    /** Аннотация книги простым текстом. */
+    val description: String? = null,
+    /** Обложка, поставленная человеком; она главнее обложки из файла. */
+    val customCoverPath: String? = null,
+    /** Название и автора правили руками — пересканирование их не трогает. */
+    val editedByUser: Boolean = false,
     /** Размер исходного файла в байтах. */
     val fileSize: Long,
     /** SHA-256 первых 64 КБ исходного файла; null у книг, добавленных до появления отпечатков. */
@@ -37,6 +43,9 @@ data class Book(
 ) {
     /** Файл, который надо отдать движку чтения. */
     val contentPath: String get() = readerPath ?: filePath
+
+    /** Какую обложку показывать: своя главнее той, что нашлась в книге. */
+    val coverToShow: String? get() = customCoverPath ?: coverPath
 
     val isReadable: Boolean get() = openFailure == null
 }

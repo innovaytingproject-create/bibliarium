@@ -93,6 +93,8 @@ fun LibraryScreen(
                 context.getString(R.string.library_prepared, current.title)
             is LibraryMessage.PreparationFailed ->
                 context.getString(R.string.library_prepare_failed, current.title)
+            is LibraryMessage.MetadataRefreshed ->
+                context.getString(R.string.library_titles_refreshed, current.count)
         }
         snackbarHostState.showSnackbar(text)
         viewModel.consumeMessage()

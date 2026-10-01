@@ -87,4 +87,39 @@ interface BookDao {
 
     @Query("UPDATE books SET isFavorite = :favorite WHERE id = :id")
     suspend fun updateFavorite(id: String, favorite: Boolean)
+
+    /** Ручная правка карточки: после неё пересканирование запись не трогает. */
+    @Query(
+        """
+        UPDATE books
+        SET title = :title, author = :author, editedByUser = 1
+        WHERE id = :id
+        """,
+    )
+    suspend fun updateTitleAndAuthor(id: String, title: String, author: String?)
+
+    @Query("UPDATE books SET description = :description WHERE id = :id")
+    suspend fun updateDescription(id: String, description: String?)
+
+    @Query("UPDATE books SET customCoverPath = :path WHERE id = :id")
+    suspend fun updateCustomCover(id: String, path: String?)
+
+    /** Что перечитывать при обновлении метаданных: всё, кроме правленного руками. */
+    @Query("SELECT * FROM books WHERE editedByUser = 0")
+    suspend fun notEditedByUser(): List<BookEntity>
+
+    @Query(
+        """
+        UPDATE books
+        SET title = :title, author = :author, description = :description, genre = :genre
+        WHERE id = :id AND editedByUser = 0
+        """,
+    )
+    suspend fun refreshMetadata(
+        id: String,
+        title: String,
+        author: String?,
+        description: String?,
+        genre: String?,
+    )
 }

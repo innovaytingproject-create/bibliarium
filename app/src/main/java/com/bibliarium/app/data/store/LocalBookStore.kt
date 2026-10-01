@@ -75,6 +75,68 @@ class LocalBookStore(
         withContext(io) { bookDao.updateFavorite(id, favorite) }
     }
 
+    override suspend fun rename(id: String, title: String, author: String?) {
+        withContext(io) {
+            bookDao.updateTitleAndAuthor(
+                id = id,
+                title = title.trim().ifEmpty { return@withContext },
+                author = author?.trim()?.takeIf { it.isNotEmpty() },
+            )
+        }
+    }
+
+    override suspend fun setDescription(id: String, description: String?) {
+        withContext(io) {
+            bookDao.updateDescription(id, description?.trim()?.takeIf { it.isNotEmpty() })
+        }
+    }
+
+    override suspend fun setCustomCover(id: String, source: Uri?): Result<Unit> =
+        withContext(io) {
+            val entity = bookDao.findById(id)
+                ?: return@withContext Result.failure(
+                    IllegalArgumentException("Книга $id не найдена"),
+                )
+
+            // Старая своя обложка удаляется в любом случае: и когда её
+            // заменяют, и когда убирают совсем.
+            entity.customCoverPath?.let { path -> runCatching { File(path).delete() } }
+
+            if (source == null) {
+                bookDao.updateCustomCover(id, null)
+                return@withContext Result.success(Unit)
+            }
+
+            val saved = importer.saveCustomCover(id, source)
+                ?: return@withContext Result.failure(
+                    IllegalStateException("Не удалось сохранить обложку"),
+                )
+            bookDao.updateCustomCover(id, saved)
+            Result.success(Unit)
+        }
+
+    override suspend fun refreshMetadata(): Int = withContext(io) {
+        var updated = 0
+        bookDao.notEditedByUser().forEach { entity ->
+            val fresh = importer.readMetadata(entity.filePath, entity.format) ?: return@forEach
+            if (fresh.title == entity.title &&
+                fresh.author == entity.author &&
+                fresh.description == entity.description
+            ) {
+                return@forEach
+            }
+            bookDao.refreshMetadata(
+                id = entity.id,
+                title = fresh.title,
+                author = fresh.author ?: entity.author,
+                description = fresh.description ?: entity.description,
+                genre = fresh.genre ?: entity.genre,
+            )
+            updated++
+        }
+        updated
+    }
+
     /**
      * Открыть книгу — ещё не значит начать её читать. Статус остаётся прежним,
      * меняется только время последнего открытия: по нему строится карточка

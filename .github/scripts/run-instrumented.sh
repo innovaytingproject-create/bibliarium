@@ -125,6 +125,10 @@ adb shell appops get "$PKG" MANAGE_EXTERNAL_STORAGE > "$OUT/appops-before-full-a
 run_pass "full-access" "com.bibliarium.app.fullaccess"
 STATUS_FULL_ACCESS=$?
 
+# --- Прогон 2.5: разбор метаданных и чистка имён файлов. Без UI.
+run_pass "import" "com.bibliarium.app.importtests"
+STATUS_IMPORT=$?
+
 # --- Прогон 3: конвертер FB2. Никакого UI и никаких разрешений — чистая
 # проверка разбора и сборки книги.
 run_pass "fb2" "com.bibliarium.app.fb2tests"
@@ -142,10 +146,11 @@ kill "$LOGCAT_PID" 2>/dev/null || true
 
 echo "=== содержимое $OUT"
 find "$OUT" -type f | head -50
-echo "=== статусы: проба=$STATUS_PROBE, без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, fb2=$STATUS_FB2, чтение=$STATUS_READER, полка=$STATUS_SHELF"
+echo "=== статусы: проба=$STATUS_PROBE, без доступа=$STATUS_NO_ACCESS, полный доступ=$STATUS_FULL_ACCESS, импорт=$STATUS_IMPORT, fb2=$STATUS_FB2, чтение=$STATUS_READER, полка=$STATUS_SHELF"
 
 if [ "$STATUS_NO_ACCESS" -ne 0 ]; then exit "$STATUS_NO_ACCESS"; fi
 if [ "$STATUS_FULL_ACCESS" -ne 0 ]; then exit "$STATUS_FULL_ACCESS"; fi
+if [ "$STATUS_IMPORT" -ne 0 ]; then exit "$STATUS_IMPORT"; fi
 if [ "$STATUS_FB2" -ne 0 ]; then exit "$STATUS_FB2"; fi
 if [ "$STATUS_READER" -ne 0 ]; then exit "$STATUS_READER"; fi
 exit "$STATUS_SHELF"

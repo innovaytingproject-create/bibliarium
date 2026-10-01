@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.bibliarium.app.AppContainer
 import com.bibliarium.app.data.importer.ImportException
 import com.bibliarium.app.data.importer.ImportFailure
+import com.bibliarium.app.data.settings.AppSettings
 import com.bibliarium.app.data.store.BookStore
 import com.bibliarium.app.domain.Book
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,10 +25,12 @@ sealed interface LibraryMessage {
     data class ImportFailed(val failure: ImportFailure) : LibraryMessage
     data class Prepared(val title: String) : LibraryMessage
     data class PreparationFailed(val title: String) : LibraryMessage
+    data class MetadataRefreshed(val count: Int) : LibraryMessage
 }
 
 class LibraryViewModel(
     private val bookStore: BookStore,
+    private val settings: AppSettings,
 ) : ViewModel() {
 
     val books: StateFlow<List<Book>> = bookStore.observeBooks()
@@ -38,6 +41,18 @@ class LibraryViewModel(
 
     private val _message = MutableStateFlow<LibraryMessage?>(null)
     val message: StateFlow<LibraryMessage?> = _message.asStateFlow()
+
+    init {
+        // Разовый проход по старым книгам: у добавленных до этой версии
+        // в названии лежит имя файла. Открывать каждый файл при каждом
+        // запуске незачем, поэтому проход помечается в настройках.
+        viewModelScope.launch {
+            if (settings.metadataPass() >= METADATA_PASS) return@launch
+            val updated = bookStore.refreshMetadata()
+            settings.setMetadataPass(METADATA_PASS)
+            if (updated > 0) _message.value = LibraryMessage.MetadataRefreshed(updated)
+        }
+    }
 
     fun import(uri: Uri) {
         viewModelScope.launch {
@@ -85,8 +100,11 @@ class LibraryViewModel(
     }
 
     companion object {
+        /** Номер прохода по метаданным: растёт, когда разбор снова изменится. */
+        private const val METADATA_PASS = 1
+
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(container.bookStore) }
+            initializer { LibraryViewModel(container.bookStore, container.settings) }
         }
     }
 }

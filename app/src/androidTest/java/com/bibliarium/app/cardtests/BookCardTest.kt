@@ -82,7 +82,7 @@ class BookCardTest {
         val book = importBook()
         openCard(book)
 
-        device.findObject(By.textContains("читать")).click()
+        scrollTo("читать")!!.click()
 
         assertTrue(
             "Из карточки не открылось чтение",
@@ -96,7 +96,7 @@ class BookCardTest {
         val book = importBook()
         openCard(book)
 
-        device.findObject(By.text("Изменить название и автора")).click()
+        scrollTo("Изменить название")!!.click()
         val field = device.wait(Until.findObject(By.text(book.title)), TIMEOUT)
         field.text = NEW_TITLE
         device.findObject(By.text("Сохранить")).click()
@@ -118,22 +118,16 @@ class BookCardTest {
         val book = importBook()
         openCard(book)
 
-        device.findObject(By.text("Добавить описание")).click()
+        scrollTo("Добавить описание")!!.click()
         device.wait(Until.findObject(By.clazz(EDIT_TEXT)), TIMEOUT).text = DESCRIPTION
         device.findObject(By.text("Сохранить")).click()
 
-        assertTrue(
-            "Описание не показалось в карточке",
-            device.wait(Until.hasObject(By.textContains(DESCRIPTION)), TIMEOUT),
-        )
+        assertNotNull("Описание не показалось в карточке", scrollTo(DESCRIPTION))
         settledScreenshot("card-description")
 
         restartApp()
         device.wait(Until.findObject(By.desc(book.title)), TIMEOUT).click()
-        assertTrue(
-            "Описание не пережило перезапуск",
-            device.wait(Until.hasObject(By.textContains(DESCRIPTION)), TIMEOUT),
-        )
+        assertNotNull("Описание не пережило перезапуск", scrollTo(DESCRIPTION))
     }
 
     /**
@@ -180,7 +174,7 @@ class BookCardTest {
         val book = importBook()
         openCard(book)
 
-        device.findObject(By.text("Удалить книгу")).click()
+        scrollTo("Удалить книгу")!!.click()
         device.wait(Until.findObject(By.text("Удалить")), TIMEOUT).click()
 
         assertTrue(
@@ -233,6 +227,20 @@ class BookCardTest {
         device.wait(Until.hasObject(By.text(book.title)), TIMEOUT)
     }
 
+    /**
+     * Карточка длиннее экрана: половина строк лежит ниже сгиба, и человек
+     * до них доскролливает. Проверка делает то же самое.
+     */
+    private fun scrollTo(text: String) = device.run {
+        repeat(MAX_SCROLLS) {
+            findObject(By.textContains(text))?.let { return@run it }
+            swipe(displayWidth / 2, displayHeight * 3 / 4, displayWidth / 2, displayHeight / 4, 10)
+            waitForIdle()
+            Thread.sleep(SCROLL_SETTLE_MS)
+        }
+        findObject(By.textContains(text))
+    }
+
     private fun openMenu() {
         device.wait(Until.findObject(By.text("•••")), TIMEOUT).click()
         device.waitForIdle()
@@ -263,6 +271,8 @@ class BookCardTest {
         const val TIMEOUT = 20_000L
         const val SHORT_TIMEOUT = 2_000L
         const val SETTLE_MS = 1_000L
+        const val SCROLL_SETTLE_MS = 300L
+        const val MAX_SCROLLS = 6
         const val PICTURE_SIZE = 400
         const val PNG_QUALITY = 100
         const val NEW_TITLE = "Моё название"

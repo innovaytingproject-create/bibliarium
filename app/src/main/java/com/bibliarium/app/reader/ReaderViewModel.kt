@@ -66,7 +66,12 @@ class ReaderViewModel(
 
     private var bookId: String? = null
 
-    fun open(id: String) {
+    /**
+     * [locatorOverride] — место, заданное снаружи: так из оглавления
+     * в карточке книга открывается сразу на нужной главе, а не там, где
+     * её закрыли в прошлый раз.
+     */
+    fun open(id: String, locatorOverride: String? = null) {
         if (bookId == id && _state.value is ReaderState.Ready) return
         bookId = id
 
@@ -81,7 +86,7 @@ class ReaderViewModel(
                 return@launch
             }
 
-            opener.open(book).fold(
+            opener.open(book, locatorOverride).fold(
                 onSuccess = { content ->
                     _state.value = ReaderState.Ready(content)
                     _position.value = positionOf(

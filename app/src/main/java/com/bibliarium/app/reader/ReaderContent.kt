@@ -108,7 +108,7 @@ class ReaderContentOpener(
     private val publicationOpener: PublicationOpener,
 ) {
 
-    suspend fun open(book: Book): Result<ReaderContent> {
+    suspend fun open(book: Book, locatorOverride: String? = null): Result<ReaderContent> {
         val engine = when (book.format) {
             // FB2 читается как EPUB: конвертация прошла при импорте.
             BookFormat.EPUB, BookFormat.FB2 -> ReaderEngine.EPUB
@@ -162,7 +162,7 @@ class ReaderContentOpener(
                 book = book,
                 publication = publication,
                 engine = engine,
-                initialLocator = book.locator?.let(::parseLocator),
+                initialLocator = (locatorOverride ?: book.locator)?.let(::parseLocator),
                 totalPositions = positions.size,
                 tableOfContents = toc,
                 spans = spansOf(byResource),

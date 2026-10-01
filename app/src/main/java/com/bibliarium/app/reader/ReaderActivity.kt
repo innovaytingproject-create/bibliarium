@@ -98,7 +98,7 @@ class ReaderActivity : AppCompatActivity() {
             return
         }
 
-        viewModel.open(bookId)
+        viewModel.open(bookId, intent.getStringExtra(EXTRA_LOCATOR))
         observeState()
         observePosition()
     }
@@ -454,11 +454,18 @@ class ReaderActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_BOOK_ID = "bookId"
+        private const val EXTRA_LOCATOR = "locator"
         private const val TAG = "navigator"
         private const val GESTURE_TAG = "BibliariumReader"
         private const val MINUTES_IN_HOUR = 60
 
-        fun intent(context: Context, bookId: String): Intent =
-            Intent(context, ReaderActivity::class.java).putExtra(EXTRA_BOOK_ID, bookId)
+        /**
+         * [locator] задаёт место, с которого открыть книгу: по нему приходят
+         * из оглавления в карточке. null — открывать там, где закончили.
+         */
+        fun intent(context: Context, bookId: String, locator: String? = null): Intent =
+            Intent(context, ReaderActivity::class.java)
+                .putExtra(EXTRA_BOOK_ID, bookId)
+                .putExtra(EXTRA_LOCATOR, locator)
     }
 }

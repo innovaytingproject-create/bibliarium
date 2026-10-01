@@ -40,6 +40,36 @@
     <string name="nav_search">Поиск</string>
     <string name="nav_add">Добавить</string>
     <string name="nav_more">Ещё</string>
+
+    <!-- Карточка книги. -->
+    <string name="card_back">Библиотека</string>
+    <string name="card_percent">%1$d %%</string>
+    <string name="card_read">прочитано</string>
+    <string name="card_quotes">цитат</string>
+    <string name="card_pages">стр</string>
+    <string name="card_file_line">%1$s · %2$s · добавлена %3$s</string>
+    <string name="card_continue">Продолжить чтение</string>
+    <string name="card_start">Начать читать</string>
+    <string name="card_more">Далее</string>
+    <string name="card_less">Свернуть</string>
+    <string name="card_add_description">Добавить описание</string>
+    <string name="card_edit_description">Изменить</string>
+    <string name="card_description_title">Описание книги</string>
+    <string name="card_toc">Оглавление</string>
+    <string name="card_quotes_and_notes">Цитаты и заметки</string>
+    <string name="card_edit_name">Изменить название и автора</string>
+    <string name="card_title_label">Название</string>
+    <string name="card_author_label">Автор</string>
+    <string name="card_save">Сохранить</string>
+    <string name="card_cancel">Отмена</string>
+    <string name="card_genres">Жанры</string>
+    <string name="card_cover_replace">Заменить обложку</string>
+    <string name="card_cover_remove">Удалить обложку</string>
+    <string name="card_mark_finished">Отметить прочитанной</string>
+    <string name="card_delete_book">Удалить книгу</string>
+    <string name="card_delete_title">Удалить книгу?</string>
+    <string name="card_delete_message">«%1$s» и её файл будут стёрты с телефона.</string>
+    <string name="card_delete">Удалить</string>
     <string name="library_delete">Удалить</string>
     <string name="library_no_author">Автор не указан</string>
     <string name="library_importing">Добавляем книгу…</string>

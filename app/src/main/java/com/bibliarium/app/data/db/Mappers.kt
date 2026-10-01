@@ -3,6 +3,7 @@ package com.bibliarium.app.data.db
 import com.bibliarium.app.domain.Book
 import com.bibliarium.app.domain.BookFailure
 import com.bibliarium.app.domain.BookFormat
+import com.bibliarium.app.domain.BookRating
 import com.bibliarium.app.domain.Highlight
 import com.bibliarium.app.domain.ReadingStatus
 import com.bibliarium.app.domain.Shelf
@@ -57,6 +58,30 @@ fun Book.toEntity(): BookEntity = BookEntity(
     readerPath = readerPath,
     openFailure = openFailure?.name,
     openFailureDetail = openFailureDetail,
+)
+
+fun BookRatingEntity.toDomain(): BookRating = BookRating(
+    bookId = bookId,
+    useful = useful,
+    clarity = clarity,
+    novelty = novelty,
+    engagement = engagement,
+    overall = overall,
+    note = note,
+    ratedAt = ratedAt,
+    surveyShown = surveyShown,
+)
+
+fun BookRating.toEntity(): BookRatingEntity = BookRatingEntity(
+    bookId = bookId,
+    useful = useful,
+    clarity = clarity,
+    novelty = novelty,
+    engagement = engagement,
+    overall = overall,
+    note = note,
+    ratedAt = ratedAt,
+    surveyShown = surveyShown,
 )
 
 fun HighlightEntity.toDomain(): Highlight = Highlight(

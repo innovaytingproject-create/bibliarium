@@ -19,6 +19,8 @@ import com.bibliarium.app.reader.ReaderContentOpener
 import com.bibliarium.app.data.store.HighlightStore
 import com.bibliarium.app.data.store.LocalBookStore
 import com.bibliarium.app.data.store.LocalHighlightStore
+import com.bibliarium.app.data.store.LocalRatingStore
+import com.bibliarium.app.data.store.RatingStore
 import java.io.File
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.r2.shared.util.asset.AssetRetriever
@@ -42,6 +44,7 @@ class AppContainer(context: Context) {
                 BibliariumDatabase.MIGRATION_1_2,
                 BibliariumDatabase.MIGRATION_2_3,
                 BibliariumDatabase.MIGRATION_3_4,
+                BibliariumDatabase.MIGRATION_4_5,
             )
             .build()
     }
@@ -98,6 +101,8 @@ class AppContainer(context: Context) {
     val bookDaoForTests: BookDao get() = database.bookDao()
 
     val highlightStore: HighlightStore by lazy { LocalHighlightStore(database.highlightDao()) }
+
+    val ratingStore: RatingStore by lazy { LocalRatingStore(database.bookRatingDao()) }
 
     val importQueueDao: ImportQueueDao by lazy { database.importQueueDao() }
 

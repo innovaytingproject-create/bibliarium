@@ -9,21 +9,46 @@ import androidx.sqlite.execSQL
 @Database(
     entities = [
         BookEntity::class,
+        BookRatingEntity::class,
         HighlightEntity::class,
         ShelfEntity::class,
         ImportQueueEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class BibliariumDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
+    abstract fun bookRatingDao(): BookRatingDao
     abstract fun highlightDao(): HighlightDao
     abstract fun shelfDao(): ShelfDao
     abstract fun importQueueDao(): ImportQueueDao
 
     companion object {
         const val NAME = "bibliarium.db"
+
+        /** Пятая версия знает оценку книги и ответы опроса после прочтения. */
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `book_ratings` (
+                        `bookId` TEXT NOT NULL,
+                        `useful` INTEGER,
+                        `clarity` INTEGER,
+                        `novelty` INTEGER,
+                        `engagement` INTEGER,
+                        `overall` REAL,
+                        `note` TEXT,
+                        `ratedAt` INTEGER,
+                        `surveyShown` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`bookId`),
+                        FOREIGN KEY(`bookId`) REFERENCES `books`(`id`) ON DELETE CASCADE
+                    )
+                    """,
+                )
+            }
+        }
 
         /**
          * Четвёртая версия знает про карточку книги: аннотацию, свою обложку

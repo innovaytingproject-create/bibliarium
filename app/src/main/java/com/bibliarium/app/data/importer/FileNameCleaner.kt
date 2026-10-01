@@ -120,7 +120,7 @@ object FileNameCleaner {
 
     private val DASHES = arrayOf(" — ", " – ", " - ", "—", "–")
     private val SPACES = Regex("\\s+")
-    private val NUMBER_IN_BRACKETS = Regex("^[\[(]\d{1,3}[])]$")
+    private val NUMBER_IN_BRACKETS = Regex("""[\[(]\d{1,3}[])]""")
     private val NUMBERING = Regex("^\\s*[\\[(]?\\d{1,3}[])]?\\s*[.)\\-–—]?\\s*")
     private val TRIM_CHARS = charArrayOf(' ', '.', ',', '-', '–', '—', '_')
 

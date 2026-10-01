@@ -64,6 +64,36 @@ data class BookEntity(
     val openFailureDetail: String?,
 )
 
+/**
+ * Оценка книги — одна запись на книгу.
+ *
+ * Внешний ключ с каскадом: удалили книгу, значит удалилась и оценка; держать
+ * оценку без книги незачем.
+ */
+@Entity(
+    tableName = "book_ratings",
+    foreignKeys = [
+        ForeignKey(
+            entity = BookEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["bookId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+)
+data class BookRatingEntity(
+    @PrimaryKey val bookId: String,
+    val useful: Int?,
+    val clarity: Int?,
+    val novelty: Int?,
+    val engagement: Int?,
+    val overall: Float?,
+    val note: String?,
+    val ratedAt: Long?,
+    /** Опрос по книге уже показывали — второй раз сам не всплывает. */
+    val surveyShown: Boolean,
+)
+
 @Entity(
     tableName = "highlights",
     indices = [Index("bookId")],

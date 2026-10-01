@@ -147,7 +147,7 @@ class BookCardTest {
             )
 
             openMenu()
-            device.findObject(By.text("Заменить обложку")).click()
+            device.wait(Until.findObject(By.text("Заменить обложку")), TIMEOUT).click()
 
             // Своя обложка стоит — значит в меню появился пункт её убрать.
             openMenu()
@@ -243,7 +243,9 @@ class BookCardTest {
 
     private fun openMenu() {
         device.wait(Until.findObject(By.text("•••")), TIMEOUT).click()
-        device.waitForIdle()
+        // Меню раскрывается с задержкой: искать пункт сразу — значит
+        // искать то, чего на экране ещё нет.
+        device.wait(Until.findObject(By.text("Заменить обложку")), TIMEOUT)
     }
 
     private fun restartApp() {

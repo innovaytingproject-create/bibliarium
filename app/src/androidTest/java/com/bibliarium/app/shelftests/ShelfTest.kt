@@ -63,8 +63,16 @@ class ShelfTest {
         settledScreenshot("shelf-spines-light")
 
         spine.click()
+
+        // Тап по корешку открывает карточку книги, а чтение начинается
+        // уже с неё.
         assertTrue(
-            "Тап по корешку не открыл книгу",
+            "Тап по корешку не открыл карточку книги",
+            device.wait(Until.hasObject(By.text(book.title)), OPEN_TIMEOUT),
+        )
+        device.wait(Until.findObject(By.textContains("читать")), OPEN_TIMEOUT).click()
+        assertTrue(
+            "С карточки не открылось чтение",
             device.wait(Until.hasObject(By.textContains("Глава 1")), OPEN_TIMEOUT),
         )
         device.pressBack()

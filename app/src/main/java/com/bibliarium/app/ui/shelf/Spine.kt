@@ -231,7 +231,9 @@ private fun DrawScope.drawSpine(
     }
 
     val inset = size.width * INSET_SHARE
-    val ornamentSize = size.width * ORNAMENT_SHARE
+    // На обложке корешок растянут, и значок, посчитанный от ширины,
+    // раздувался в половину картинки. Высота ставит ему предел.
+    val ornamentSize = minOf(size.width * ORNAMENT_SHARE, size.height * ORNAMENT_MAX_SHARE)
     val ornamentAtTop = look.pattern % 2 == 1
     val ornamentCenter = Offset(
         x = size.width / 2,
@@ -516,6 +518,7 @@ private const val SHORT_RULES = 3
 private const val MEDALLION_SHARE = 0.3f
 private const val HAIRLINE = 1f
 private const val ORNAMENT_SHARE = 0.34f
+private const val ORNAMENT_MAX_SHARE = 0.06f
 private const val ORNAMENT_GAP = 2.2f
 private const val ORNAMENT_ALPHA = 0.7f
 private const val ORNAMENT_STROKE = 1.4f

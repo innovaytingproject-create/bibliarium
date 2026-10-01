@@ -52,6 +52,7 @@ import com.bibliarium.app.ui.theme.BibliariumTheme
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Карточка книги — то, что открывается тапом по корешку.
@@ -716,4 +717,7 @@ private const val IMAGE_FILTER = "image/*"
 private const val MENU_DOTS = "•••"
 private const val CHEVRON = "›"
 private const val DASH = "—"
-private val DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy")
+// Локаль задаётся явно: без неё месяц выводился по-английски даже на
+// русском интерфейсе.
+private val DATE_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("ru"))

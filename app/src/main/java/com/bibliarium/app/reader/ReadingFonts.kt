@@ -37,6 +37,15 @@ fun EpubNavigatorFragment.Configuration.declareReadingFonts() {
         }
     }
 
+    // Третий шрифт чтения: тот же, которым набран интерфейс.
+    addFontFamilyDeclaration(FontFamily("IBM Plex Sans")) {
+        addFontFace {
+            addSource("fonts/ibm_plex_sans.ttf")
+            setFontStyle(FontStyle.NORMAL)
+            setFontWeight(100..700)
+        }
+    }
+
     addFontFamilyDeclaration(FontFamily.LORA) {
         addFontFace {
             addSource("fonts/lora.ttf")

@@ -9,6 +9,7 @@ import com.bibliarium.app.AppContainer
 import com.bibliarium.app.data.settings.ReaderSettingsStore
 import com.bibliarium.app.data.store.BookStore
 import com.bibliarium.app.data.store.RatingStore
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -85,6 +86,22 @@ class ReaderViewModel(
     private val _theme = MutableStateFlow(ReaderTheme.LIGHT)
     val theme: StateFlow<ReaderTheme> = _theme.asStateFlow()
 
+    /**
+     * Настройки чтения в человеческих единицах: их показывает лист настроек.
+     * В единицы Readium они переводятся при записи, а не при показе.
+     */
+    private val _settings = MutableStateFlow(
+        ReadingSettings(
+            font = ReadingFont.LITERATA,
+            size = BASE_FONT_SIZE,
+            margins = ReadingMargins.MEDIUM,
+            spacing = ReadingSpacing.NORMAL,
+            theme = ReaderTheme.LIGHT,
+            brightness = DEFAULT_BRIGHTNESS,
+        ),
+    )
+    val settings: StateFlow<ReadingSettings> = _settings.asStateFlow()
+
     private val _pdfNightMode = MutableStateFlow(false)
     val pdfNightMode: StateFlow<Boolean> = _pdfNightMode.asStateFlow()
 
@@ -110,6 +127,11 @@ class ReaderViewModel(
             )
             _pdfPreferences.value = pdfDefaults(settingsStore.currentPdfPreferences())
             _pdfNightMode.value = _theme.value == ReaderTheme.DARK
+            _settings.value = settingsOf(
+                _epubPreferences.value,
+                _theme.value,
+                settingsStore.currentBrightness(),
+            )
 
             val book = bookStore.get(id)
             if (book == null) {
@@ -223,6 +245,7 @@ class ReaderViewModel(
      */
     fun setTheme(theme: ReaderTheme) {
         _theme.value = theme
+        _settings.value = _settings.value.copy(theme = theme)
         _epubPreferences.value = withTheme(_epubPreferences.value, theme)
         _pdfNightMode.value = theme == ReaderTheme.DARK
         viewModelScope.launch {
@@ -231,6 +254,73 @@ class ReaderViewModel(
             settingsStore.savePdfNightMode(_pdfNightMode.value)
         }
     }
+
+    fun setFont(font: ReadingFont) {
+        _settings.value = _settings.value.copy(font = font)
+        updateEpubPreferences(
+            _epubPreferences.value.copy(
+                fontFamily = when (font) {
+                    ReadingFont.LORA -> FontFamily.LORA
+                    ReadingFont.LITERATA -> FontFamily.LITERATA
+                    ReadingFont.PLEX_SANS -> PLEX_SANS_FAMILY
+                    ReadingFont.SYSTEM -> null
+                },
+            ),
+        )
+    }
+
+    fun setSize(size: Int) {
+        val clamped = size.coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE)
+        _settings.value = _settings.value.copy(size = clamped)
+        updateEpubPreferences(
+            _epubPreferences.value.copy(
+                fontSize = clamped.toDouble() / BASE_FONT_SIZE,
+            ),
+        )
+    }
+
+    fun setMargins(margins: ReadingMargins) {
+        _settings.value = _settings.value.copy(margins = margins)
+        updateEpubPreferences(_epubPreferences.value.copy(pageMargins = margins.multiplier))
+    }
+
+    fun setSpacing(spacing: ReadingSpacing) {
+        _settings.value = _settings.value.copy(spacing = spacing)
+        updateEpubPreferences(_epubPreferences.value.copy(lineHeight = spacing.value))
+    }
+
+    /**
+     * Яркость подсветки. Меняется только пока открыто приложение: системную
+     * настройку трогать нельзя — человек её ставил не для нас.
+     */
+    fun setBrightness(value: Float) {
+        val clamped = value.coerceIn(0f, 1f)
+        _settings.value = _settings.value.copy(brightness = clamped)
+        viewModelScope.launch { settingsStore.saveBrightness(clamped) }
+    }
+
+    private fun settingsOf(
+        preferences: EpubPreferences,
+        theme: ReaderTheme,
+        brightness: Float,
+    ): ReadingSettings = ReadingSettings(
+        font = when (preferences.fontFamily) {
+            FontFamily.LORA -> ReadingFont.LORA
+            FontFamily.LITERATA -> ReadingFont.LITERATA
+            PLEX_SANS_FAMILY -> ReadingFont.PLEX_SANS
+            else -> ReadingFont.SYSTEM
+        },
+        size = ((preferences.fontSize ?: 1.0) * BASE_FONT_SIZE).roundToInt()
+            .coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE),
+        margins = ReadingMargins.entries.minBy {
+            kotlin.math.abs(it.multiplier - (preferences.pageMargins ?: 1.0))
+        },
+        spacing = ReadingSpacing.entries.minBy {
+            kotlin.math.abs(it.value - (preferences.lineHeight ?: DEFAULT_LINE_HEIGHT))
+        },
+        theme = theme,
+        brightness = if (brightness < 0f) DEFAULT_BRIGHTNESS else brightness,
+    )
 
     private fun withTheme(preferences: EpubPreferences, theme: ReaderTheme): EpubPreferences =
         preferences.copy(
@@ -323,6 +413,14 @@ class ReaderViewModel(
         private const val FINISHED = 0.99f
         private const val DEFAULT_LINE_HEIGHT = 1.7
         private const val DEFAULT_PAGE_MARGINS = 1.0
+        private const val MIN_FONT_SIZE = 14
+        private const val MAX_FONT_SIZE = 26
+
+        /** Полная яркость по умолчанию: лист открывается с понятным ползунком. */
+        private const val DEFAULT_BRIGHTNESS = 0.8f
+
+        /** Шрифт объявляется навигатору в ReadingFonts.kt под этим же именем. */
+        private val PLEX_SANS_FAMILY = FontFamily("IBM Plex Sans")
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {

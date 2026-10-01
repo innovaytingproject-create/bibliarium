@@ -9,12 +9,17 @@ import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -130,11 +135,22 @@ class ReaderActivity : AppCompatActivity() {
                     val theme by viewModel.theme.collectAsStateWithLifecycle()
                     val palette = ReaderPalette.of(theme)
                     var panelsVisible by remember { mutableStateOf(false) }
+                    var settingsOpen by remember { mutableStateOf(false) }
+                    val settings by viewModel.settings.collectAsStateWithLifecycle()
 
                     // Экран слушает просьбы показать или спрятать панели:
                     // их шлёт обработчик тапа по центральной трети.
                     panelsRequest = { panelsVisible = it }
                     panelsState = { panelsVisible }
+                    settingsRequest = { settingsOpen = true }
+
+                    // Яркость подсветки ставится окну, а не системе: человек
+                    // настраивал систему не для нас.
+                    LaunchedEffect(settings.brightness) {
+                        window.attributes = window.attributes.apply {
+                            screenBrightness = settings.brightness
+                        }
+                    }
 
                     Box(modifier = Modifier.fillMaxSize()) {
                         when (val current = state) {
@@ -149,15 +165,41 @@ class ReaderActivity : AppCompatActivity() {
                                 onClose = ::finish,
                             )
 
-                            is ReaderState.Ready -> ReaderChrome(
-                                visible = panelsVisible,
-                                palette = palette,
-                                title = current.content.book.title,
-                                chapter = position.chapter,
-                                progressLabel = progressLabel(position),
-                                progress = position.progress,
-                                actions = actionsFor(current.content),
-                            )
+                            is ReaderState.Ready -> {
+                                ReaderChrome(
+                                    visible = panelsVisible,
+                                    palette = palette,
+                                    title = current.content.book.title,
+                                    chapter = position.chapter,
+                                    progressLabel = progressLabel(position),
+                                    progress = position.progress,
+                                    actions = actionsFor(current.content),
+                                )
+
+                                if (settingsOpen) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(SCRIM)
+                                            .clickable { settingsOpen = false },
+                                    )
+                                    ReaderSettingsSheet(
+                                        palette = palette,
+                                        settings = settings,
+                                        forEpub = current.content.engine == ReaderEngine.EPUB,
+                                        onFont = viewModel::setFont,
+                                        onSize = viewModel::setSize,
+                                        onMargins = viewModel::setMargins,
+                                        onSpacing = viewModel::setSpacing,
+                                        onTheme = viewModel::setTheme,
+                                        onBrightness = viewModel::setBrightness,
+                                        onClose = { settingsOpen = false },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .windowInsetsPadding(WindowInsets.navigationBars),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -202,13 +244,14 @@ class ReaderActivity : AppCompatActivity() {
         onToc = { showTableOfContents() },
         onBookmark = { /* закладки появятся вместе с выделениями */ },
         onHighlight = { /* выделение появится в своей части */ },
-        onSettings = { showSettings() },
+        onSettings = { settingsRequest() },
         onSearch = { /* поиск по книге появится в своей части */ },
         searchAvailable = content.engine == ReaderEngine.EPUB,
     )
 
     /** Показать или спрятать панели просит обработчик тапа. */
     private var panelsRequest: (Boolean) -> Unit = {}
+    private var settingsRequest: () -> Unit = {}
     private var panelsState: () -> Boolean = { false }
 
     private fun togglePanels() {
@@ -483,11 +526,6 @@ class ReaderActivity : AppCompatActivity() {
         return true
     }
 
-    private fun showSettings() {
-        val current = content ?: return
-        ReaderSettingsDialog(this, viewModel, current.engine).show()
-    }
-
     // --- PDF ---------------------------------------------------------------
 
     private fun observeNightMode(fragment: Fragment) {
@@ -533,6 +571,9 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     companion object {
+        /** Затемнение под листом настроек. */
+        private val SCRIM = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f)
+
         private const val EXTRA_BOOK_ID = "bookId"
         private const val EXTRA_LOCATOR = "locator"
         private const val TAG = "navigator"

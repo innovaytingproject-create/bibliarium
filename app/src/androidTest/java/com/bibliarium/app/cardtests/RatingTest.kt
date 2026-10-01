@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import com.bibliarium.app.Shell
 import com.bibliarium.app.TestArtifacts
@@ -156,16 +157,22 @@ class RatingTest {
     private fun openReaderAndFinish(book: Book) {
         openCard(book)
         startReading()
-        device.wait(Until.hasObject(By.textContains("Книга А")), TIMEOUT)
+
+        // Название книги есть и в карточке, поэтому ждать его бесполезно:
+        // ожидание возвращалось мгновенно, а тап уходил ещё в карточку.
+        // Ждём то, что бывает только в читалке, — текст самой книги.
+        assertTrue(
+            "Читалка не открылась. На экране: ${visibleText()}",
+            device.wait(Until.hasObject(By.textContains("абзац")), TIMEOUT),
+        )
 
         // Долистать всю книгу тапами — это сотня нажатий: в главе
         // семнадцать страниц. Поэтому прыгаем оглавлением в последнюю главу
         // и дальше листаем руками, как сделал бы человек, которому осталось
         // дочитать немного.
-        tapCenter()
-        val toc = device.wait(Until.findObject(By.desc("Оглавление")), TIMEOUT)
+        val toc = showPanels()
         assertNotNull("В читалке нет кнопки оглавления: ${visibleText()}", toc)
-        toc.click()
+        toc!!.click()
 
         // Берём последнюю главу списка, а не главу с заданным названием:
         // проверка не должна знать, как называются главы в книге.
@@ -212,6 +219,22 @@ class RatingTest {
         button!!.click()
     }
 
+    /**
+     * Показывает панели и возвращает кнопку оглавления.
+     *
+     * Первый тап иногда приходится на тот миг, когда книга ещё открывается,
+     * и пропадает. Человек в этом случае просто тапает ещё раз — здесь то же
+     * самое, а не одна попытка с длинным ожиданием.
+     */
+    private fun showPanels(): UiObject2? {
+        repeat(PANEL_TRIES) {
+            tapCenter()
+            val toc = device.wait(Until.findObject(By.desc("Оглавление")), PANEL_TIMEOUT)
+            if (toc != null) return toc
+        }
+        return null
+    }
+
     /** Что сейчас на экране — чтобы падение само говорило, где оно случилось. */
     private fun visibleText(): String =
         device.findObjects(By.textContains(""))
@@ -250,6 +273,8 @@ class RatingTest {
         const val MAX_SCROLLS = 6
         const val MAX_TAPS = 25
         const val VISIBLE_TEXTS = 12
+        const val PANEL_TRIES = 3
+        const val PANEL_TIMEOUT = 3_000L
         const val TAP_SETTLE_MS = 450L
     }
 }

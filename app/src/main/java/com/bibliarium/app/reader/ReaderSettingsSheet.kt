@@ -37,6 +37,7 @@ import com.bibliarium.app.R
  * и интервал там менять нечего. Их не показываем вовсе, а не делаем серыми:
  * серая кнопка читается как поломка.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderSettingsSheet(
     palette: ReaderPalette,

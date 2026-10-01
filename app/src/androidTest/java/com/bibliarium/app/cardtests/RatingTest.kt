@@ -146,16 +146,29 @@ class RatingTest {
     // --- вспомогательное ---------------------------------------------------
 
     /**
-     * Доводит книгу до конца тем же вызовом, которым это делает читалка,
-     * и открывает её — чтобы опрос показался так же, как у человека.
+     * Долистывает книгу до конца так же, как человек.
+     *
+     * Сначала прошлый вариант дописывал прогресс прямо в хранилище — и опрос
+     * не появлялся, потому что показать его решает экран чтения, а не база.
+     * Поэтому здесь настоящий путь: оглавление, последняя глава, тапы
+     * до конца.
      */
     private fun openReaderAndFinish(book: Book) {
         openCard(book)
         scrollTo("читать")!!.click()
         device.wait(Until.hasObject(By.textContains("Книга А")), TIMEOUT)
-        runBlocking { store.saveProgress(book.id, 1f, book.locator) }
+
+        // Панели открыты сразу после запуска книги: оттуда и оглавление.
+        device.wait(Until.findObject(By.text("Оглавление")), TIMEOUT).click()
+        device.wait(Until.findObject(By.text("Глава 6")), TIMEOUT).click()
         device.waitForIdle()
-        Thread.sleep(SETTLE_MS)
+
+        repeat(MAX_TAPS) {
+            if (device.findObject(By.textContains("100 %")) != null) return@repeat
+            device.click(device.displayWidth * 5 / 6, device.displayHeight / 2)
+            device.waitForIdle()
+            Thread.sleep(TAP_SETTLE_MS)
+        }
     }
 
     private fun importBook(): Book {
@@ -199,5 +212,7 @@ class RatingTest {
         const val SETTLE_MS = 1_000L
         const val SCROLL_SETTLE_MS = 300L
         const val MAX_SCROLLS = 6
+        const val MAX_TAPS = 12
+        const val TAP_SETTLE_MS = 600L
     }
 }

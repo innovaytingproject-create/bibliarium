@@ -163,8 +163,16 @@ class RatingTest {
         // и дальше листаем руками, как сделал бы человек, которому осталось
         // дочитать немного.
         tapCenter()
-        device.wait(Until.findObject(By.desc("Оглавление")), TIMEOUT).click()
-        device.wait(Until.findObject(By.text("Глава 6")), TIMEOUT).click()
+        val toc = device.wait(Until.findObject(By.desc("Оглавление")), TIMEOUT)
+        assertNotNull("В читалке нет кнопки оглавления: ${visibleText()}", toc)
+        toc.click()
+
+        // Берём последнюю главу списка, а не главу с заданным названием:
+        // проверка не должна знать, как называются главы в книге.
+        device.wait(Until.hasObject(By.textStartsWith("Глава")), TIMEOUT)
+        val chapters = device.findObjects(By.textStartsWith("Глава"))
+        assertTrue("В оглавлении нет глав. На экране: ${visibleText()}", chapters.isNotEmpty())
+        chapters.last().click()
         device.waitForIdle()
 
         repeat(MAX_TAPS) {
@@ -204,6 +212,14 @@ class RatingTest {
         button!!.click()
     }
 
+    /** Что сейчас на экране — чтобы падение само говорило, где оно случилось. */
+    private fun visibleText(): String =
+        device.findObjects(By.textContains(""))
+            .mapNotNull { it.text?.trim()?.takeIf { text -> text.isNotEmpty() } }
+            .distinct()
+            .take(VISIBLE_TEXTS)
+            .joinToString(" | ")
+
     private fun tapCenter() {
         device.click(device.displayWidth / 2, device.displayHeight / 2)
         device.waitForIdle()
@@ -233,6 +249,7 @@ class RatingTest {
         const val SCROLL_SETTLE_MS = 300L
         const val MAX_SCROLLS = 6
         const val MAX_TAPS = 25
+        const val VISIBLE_TEXTS = 12
         const val TAP_SETTLE_MS = 450L
     }
 }

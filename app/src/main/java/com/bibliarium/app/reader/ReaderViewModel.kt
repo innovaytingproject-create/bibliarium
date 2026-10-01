@@ -83,6 +83,10 @@ class ReaderViewModel(
      * Тема чтения. Своя, не общая с приложением: сепия есть только здесь,
      * и переключается она в настройках чтения, а не в системе.
      */
+    /** Какая строка оглавления сейчас: по ней подсвечивается текущая глава. */
+    private val _tocIndex = MutableStateFlow(0)
+    val tocIndex: StateFlow<Int> = _tocIndex.asStateFlow()
+
     private val _theme = MutableStateFlow(ReaderTheme.LIGHT)
     val theme: StateFlow<ReaderTheme> = _theme.asStateFlow()
 
@@ -186,6 +190,7 @@ class ReaderViewModel(
         )
 
         lastLocator = locator.serialize()
+        _tocIndex.value = tocIndexFor(content, locator)
         viewModelScope.launch {
             bookStore.saveProgress(id, progress, lastLocator)
             if (progress >= FINISHED) askAboutBook(id)
@@ -297,6 +302,23 @@ class ReaderViewModel(
         val clamped = value.coerceIn(0f, 1f)
         _settings.value = _settings.value.copy(brightness = clamped)
         viewModelScope.launch { settingsStore.saveBrightness(clamped) }
+    }
+
+    /**
+     * Текущая глава в оглавлении.
+     *
+     * Сначала ищем строку с тем же файлом, что и у места чтения; если глав
+     * в файле несколько — берём последнюю, что уже началась.
+     */
+    private fun tocIndexFor(content: ReaderContent, locator: Locator): Int {
+        val entries = content.tableOfContents
+        if (entries.isEmpty()) return 0
+        val sameHref = entries.withIndex().filter { it.value.locator.href == locator.href }
+        if (sameHref.isEmpty()) return _tocIndex.value
+        val progression = locator.locations.progression ?: 0.0
+        return sameHref.lastOrNull { (_, entry) ->
+            (entry.locator.locations.progression ?: 0.0) <= progression
+        }?.index ?: sameHref.first().index
     }
 
     private fun settingsOf(

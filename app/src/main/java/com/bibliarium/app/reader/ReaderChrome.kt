@@ -8,6 +8,11 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,11 +28,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +69,10 @@ fun ReaderChrome(
     progress: Float,
     actions: ReaderActions,
     modifier: Modifier = Modifier,
+    /** Куда перешли, отпустив полосу прогресса. */
+    onSeek: (Float) -> Unit = {},
+    /** Что показать в подсказке над пальцем для доли книги. */
+    seekHint: (Float) -> String = { "" },
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -71,7 +90,7 @@ fun ReaderChrome(
             exit = fadeOut() + slideOutVertically { it },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            BottomBar(palette, progress, progressLabel, actions)
+            BottomBar(palette, progress, progressLabel, actions, onSeek, seekHint)
         }
     }
 }
@@ -153,6 +172,8 @@ private fun BottomBar(
     progress: Float,
     progressLabel: String,
     actions: ReaderActions,
+    onSeek: (Float) -> Unit,
+    seekHint: (Float) -> String,
 ) {
     Column(
         modifier = Modifier
@@ -164,6 +185,8 @@ private fun BottomBar(
         ProgressLine(
             palette = palette,
             progress = progress,
+            onSeek = onSeek,
+            hint = seekHint,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(PROGRESS_ROW_HEIGHT.dp),
@@ -203,28 +226,103 @@ private fun BottomBar(
     }
 }
 
-/** Полоса прогресса: линия во всю ширину и кружок на текущем месте. */
+/**
+ * Полоса прогресса: линия во всю ширину и кружок на текущем месте.
+ *
+ * Полосу можно тянуть пальцем. Пока тянешь, над пальцем висит подсказка
+ * с главой и процентом, а переход случается, когда отпустил: иначе книга
+ * перескакивала бы на каждое движение пальца.
+ */
 @Composable
-private fun ProgressLine(palette: ReaderPalette, progress: Float, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val y = size.height / 2
-        drawLine(
-            color = palette.line,
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
-            strokeWidth = PROGRESS_THICKNESS.dp.toPx(),
-        )
-        val filled = size.width * progress.coerceIn(0f, 1f)
-        drawLine(
-            color = palette.accent,
-            start = Offset(0f, y),
-            end = Offset(filled, y),
-            strokeWidth = PROGRESS_THICKNESS.dp.toPx(),
-        )
-        drawCircle(
-            color = palette.accent,
-            radius = PROGRESS_KNOB.dp.toPx() / 2,
-            center = Offset(filled, y),
+private fun ProgressLine(
+    palette: ReaderPalette,
+    progress: Float,
+    onSeek: (Float) -> Unit,
+    hint: (Float) -> String,
+    modifier: Modifier = Modifier,
+) {
+    var dragging by remember { mutableStateOf(false) }
+    var dragValue by remember { mutableFloatStateOf(progress) }
+    var width by remember { mutableFloatStateOf(1f) }
+    val shown = if (dragging) dragValue else progress
+
+    Box(modifier = modifier) {
+        if (dragging) {
+            SeekHint(
+                text = hint(dragValue),
+                palette = palette,
+                fraction = dragValue,
+                modifier = Modifier.align(Alignment.TopStart),
+            )
+        }
+
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            dragging = true
+                            dragValue = (offset.x / width).coerceIn(0f, 1f)
+                        },
+                        onDragEnd = {
+                            dragging = false
+                            onSeek(dragValue)
+                        },
+                        onDragCancel = { dragging = false },
+                        onHorizontalDrag = { change, _ ->
+                            dragValue = (change.position.x / width).coerceIn(0f, 1f)
+                        },
+                    )
+                }
+                .semantics { contentDescription = "Полоса прогресса" },
+        ) {
+            val y = size.height / 2
+            drawLine(
+                color = palette.line,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = PROGRESS_THICKNESS.dp.toPx(),
+            )
+            val filled = size.width * shown.coerceIn(0f, 1f)
+            drawLine(
+                color = palette.accent,
+                start = Offset(0f, y),
+                end = Offset(filled, y),
+                strokeWidth = PROGRESS_THICKNESS.dp.toPx(),
+            )
+            drawCircle(
+                color = palette.accent,
+                radius = PROGRESS_KNOB.dp.toPx() / 2 * (if (dragging) KNOB_GROWN else 1f),
+                center = Offset(filled, y),
+            )
+        }
+    }
+}
+
+/** Подсказка над пальцем: куда попадёшь, если отпустить здесь. */
+@Composable
+private fun SeekHint(
+    text: String,
+    palette: ReaderPalette,
+    fraction: Float,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val offset = (maxWidth - HINT_WIDTH.dp) * fraction.coerceIn(0f, 1f)
+        Text(
+            text = text,
+            style = BibliariumTheme.type.labelSm,
+            color = palette.text,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .offset(x = offset)
+                .width(HINT_WIDTH.dp)
+                .clip(RoundedCornerShape(HINT_CORNER.dp))
+                .background(palette.surface)
+                .padding(horizontal = HINT_PADDING.dp, vertical = HINT_PADDING.dp),
         )
     }
 }
@@ -255,3 +353,7 @@ private const val TITLE_PADDING = 56
 private const val ICON_GAP = 4
 private const val PANEL_ALPHA = 0.76f
 private const val BLUR = 12
+private const val KNOB_GROWN = 1.6f
+private const val HINT_WIDTH = 150
+private const val HINT_CORNER = 8
+private const val HINT_PADDING = 6

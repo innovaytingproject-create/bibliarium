@@ -136,6 +136,8 @@ class ReaderActivity : AppCompatActivity() {
                     val palette = ReaderPalette.of(theme)
                     var panelsVisible by remember { mutableStateOf(false) }
                     var settingsOpen by remember { mutableStateOf(false) }
+                    var tocOpen by remember { mutableStateOf(false) }
+                    val tocIndex by viewModel.tocIndex.collectAsStateWithLifecycle()
                     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
                     // Экран слушает просьбы показать или спрятать панели:
@@ -143,6 +145,7 @@ class ReaderActivity : AppCompatActivity() {
                     panelsRequest = { panelsVisible = it }
                     panelsState = { panelsVisible }
                     settingsRequest = { settingsOpen = true }
+                    tocRequest = { tocOpen = true }
 
                     // Яркость подсветки ставится окну, а не системе: человек
                     // настраивал систему не для нас.
@@ -174,7 +177,25 @@ class ReaderActivity : AppCompatActivity() {
                                     progressLabel = progressLabel(position),
                                     progress = position.progress,
                                     actions = actionsFor(current.content),
+                                    onSeek = { fraction -> seekTo(current.content, fraction) },
+                                    seekHint = { fraction -> seekHint(current.content, fraction) },
                                 )
+
+                                if (tocOpen && current.content.tableOfContents.isNotEmpty()) {
+                                    ReaderToc(
+                                        palette = palette,
+                                        bookTitle = current.content.book.title,
+                                        entries = current.content.tableOfContents,
+                                        currentIndex = tocIndex,
+                                        onPick = { index ->
+                                            tocOpen = false
+                                            if (!goTo(current.content.tableOfContents[index])) {
+                                                panelsVisible = false
+                                            }
+                                        },
+                                        onClose = { tocOpen = false },
+                                    )
+                                }
 
                                 if (settingsOpen) {
                                     Box(
@@ -252,6 +273,7 @@ class ReaderActivity : AppCompatActivity() {
     /** Показать или спрятать панели просит обработчик тапа. */
     private var panelsRequest: (Boolean) -> Unit = {}
     private var settingsRequest: () -> Unit = {}
+    private var tocRequest: () -> Unit = {}
     private var panelsState: () -> Boolean = { false }
 
     private fun togglePanels() {
@@ -466,30 +488,51 @@ class ReaderActivity : AppCompatActivity() {
 
     // --- оглавление и настройки -------------------------------------------
 
+    /**
+     * Оглавление. У книги с закладками — панель слева, у PDF без них —
+     * сетка страниц: брать оглавление в скане неоткуда, а листать документ
+     * по одной странице не навигация.
+     */
     private fun showTableOfContents() {
         val current = content ?: return
-        val entries = current.tableOfContents
-
-        if (entries.isEmpty()) {
-            if (current.engine == ReaderEngine.PDF) {
-                showPdfPages(current)
-            } else {
-                AlertDialog.Builder(this)
-                    .setMessage(R.string.reader_toc_empty)
-                    .setPositiveButton(R.string.reader_close, null)
-                    .show()
-            }
+        if (current.tableOfContents.isNotEmpty()) {
+            tocRequest()
             return
         }
 
-        AlertDialog.Builder(this)
-            .setTitle(R.string.reader_toc)
-            .setItems(entries.map { it.title }.toTypedArray()) { _, index ->
-                // У PDF панели остаются: номер страницы — единственный отклик
-                // на переход, картинку страницы прочитать нельзя.
-                if (!goTo(entries[index])) setPanelsVisible(false)
-            }
-            .show()
+        if (current.engine == ReaderEngine.PDF) {
+            showPdfPages(current)
+        } else {
+            AlertDialog.Builder(this)
+                .setMessage(R.string.reader_toc_empty)
+                .setPositiveButton(R.string.reader_close, null)
+                .show()
+        }
+    }
+
+    /**
+     * Перескок по полосе прогресса.
+     *
+     * У EPUB место ищется по позициям книги, у PDF — по номеру страницы:
+     * и то, и другое Readium считает сам, а делить книгу на равные куски
+     * было бы враньём — главы разной длины.
+     */
+    private fun seekTo(content: ReaderContent, fraction: Float) {
+        val share = fraction.coerceIn(0f, 1f)
+        if (content.engine == ReaderEngine.PDF) {
+            val pages = pdfView?.pageCount ?: return
+            jumpToPdfPage((share * pages).toInt().coerceIn(1, pages))
+            return
+        }
+        val target = content.positionAt(share) ?: return
+        navigator?.go(target, animated = false)
+    }
+
+    /** Что показать в подсказке над пальцем: глава и процент. */
+    private fun seekHint(content: ReaderContent, fraction: Float): String {
+        val percent = (fraction * PERCENT).toInt()
+        val chapter = content.chapterAt(fraction)
+        return if (chapter != null) "$chapter · $percent %" else "$percent %"
     }
 
     private fun showPdfPages(current: ReaderContent) {

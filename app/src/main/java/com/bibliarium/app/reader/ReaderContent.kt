@@ -37,6 +37,8 @@ class ReaderContent(
     val tableOfContents: List<TocEntry>,
     /** Границы каждой главы в книге; по ним считается прогресс чтения. */
     private val spans: Map<String, ResourceSpan> = emptyMap(),
+    /** Позиции книги: по ним работает перескок полосой прогресса. */
+    private val positions: List<Locator> = emptyList(),
 ) {
     /**
      * Доля прочитанного от всей книги.
@@ -60,6 +62,24 @@ class ReaderContent(
         return value.toFloat().coerceIn(0f, 1f)
     }
 
+    /** Место в книге по доле от начала — для перескока полосой прогресса. */
+    fun positionAt(fraction: Float): Locator? {
+        if (positions.isEmpty()) return null
+        val index = (fraction * (positions.size - 1)).toInt().coerceIn(0, positions.size - 1)
+        return positions[index]
+    }
+
+    /** Какая глава на этой доле книги — для подсказки над пальцем. */
+    fun chapterAt(fraction: Float): String? {
+        val target = positionAt(fraction) ?: return null
+        return tableOfContents.lastOrNull { entry ->
+            entry.locator.href == target.href
+        }?.title
+            ?: tableOfContents.lastOrNull { entry ->
+                (entry.locator.locations.totalProgression ?: 0.0) <= fraction
+            }?.title
+    }
+
     fun close() {
         runCatching { publication.close() }
     }
@@ -68,10 +88,16 @@ class ReaderContent(
 /**
  * Строка оглавления.
  *
- * [page] заполнен только у PDF: там переход делается по номеру страницы,
- * а не через локатор (см. ReaderActivity.jumpToPdfPage).
+ * [page] у PDF — настоящая страница, у EPUB — номер позиции Readium:
+ * единственное, что в книге без вёрстки можно назвать страницей.
+ * [depth] — вложенность: подглавы показываются со сдвигом.
  */
-data class TocEntry(val title: String, val locator: Locator, val page: Int? = null)
+data class TocEntry(
+    val title: String,
+    val locator: Locator,
+    val page: Int? = null,
+    val depth: Int = 0,
+)
 
 sealed interface ReaderOpenError {
     /** Место обрыва словами — то, что стоит показать и записать в лог. */
@@ -155,7 +181,8 @@ class ReaderContentOpener(
         val byResource = runCatching { publication.positionsByReadingOrder() }
             .getOrDefault(emptyList())
         val positions = byResource.flatten()
-        val toc = runCatching { buildToc(publication, engine) }.getOrDefault(emptyList())
+        val toc = runCatching { buildToc(publication, engine, positions) }
+            .getOrDefault(emptyList())
 
         return Result.success(
             ReaderContent(
@@ -166,6 +193,7 @@ class ReaderContentOpener(
                 totalPositions = positions.size,
                 tableOfContents = toc,
                 spans = spansOf(byResource),
+                positions = positions,
             ),
         )
     }
@@ -182,6 +210,7 @@ class ReaderContentOpener(
     private suspend fun buildToc(
         publication: Publication,
         engine: ReaderEngine,
+        positions: List<Locator>,
     ): List<TocEntry> {
         val links = when (engine) {
             ReaderEngine.PDF -> publication.tableOfContents
@@ -194,9 +223,10 @@ class ReaderContentOpener(
             val title = entry.link.title?.trim()?.takeIf { it.isNotEmpty() }
                 ?: "Часть ${index + 1}"
             TocEntry(
-                title = entry.indent + title,
+                title = title,
                 locator = locator,
-                page = pageOf(locator),
+                page = pageOf(locator) ?: positionOf(locator, positions),
+                depth = entry.depth,
             )
         }
     }
@@ -204,9 +234,18 @@ class ReaderContentOpener(
     /** Вложенные разделы показываются тем же списком, но со сдвигом. */
     private fun flatten(links: List<Link>, depth: Int = 0): List<FlatLink> =
         links.flatMap { link ->
-            listOf(FlatLink(link, NESTING_INDENT.repeat(depth))) +
-                flatten(link.children, depth + 1)
+            listOf(FlatLink(link, depth)) + flatten(link.children, depth + 1)
         }
+
+    /**
+     * Номер позиции, с которой начинается глава.
+     *
+     * В EPUB страниц нет — вёрстка зависит от шрифта и полей, — но человеку
+     * нужен хоть какой-то ориентир. Позиции Readium для этого и есть: они
+     * не плывут от настроек.
+     */
+    private fun positionOf(locator: Locator, positions: List<Locator>): Int? =
+        positions.firstOrNull { it.href == locator.href }?.locations?.position
 
     /** Закладка PDF приезжает ссылкой вида `book.pdf#page=7`. */
     private fun pageOf(locator: Locator): Int? =
@@ -214,7 +253,7 @@ class ReaderContentOpener(
             PAGE_FRAGMENT.find(fragment)?.groupValues?.get(1)?.toIntOrNull()
         }
 
-    private data class FlatLink(val link: Link, val indent: String)
+    private data class FlatLink(val link: Link, val depth: Int)
 
     /**
      * Границы глав в книге целиком.
@@ -251,7 +290,7 @@ class ReaderContentOpener(
 
     private companion object {
         const val MAX_CAUSE_DEPTH = 5
-        const val NESTING_INDENT = "    "
+
         val PAGE_FRAGMENT = Regex("page=(\\d+)")
     }
 }

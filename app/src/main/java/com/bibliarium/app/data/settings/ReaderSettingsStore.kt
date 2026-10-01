@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,6 +15,7 @@ import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.adapter.pdfium.navigator.PdfiumPreferencesSerializer
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.epub.EpubPreferencesSerializer
+import com.bibliarium.app.reader.ReaderTheme
 import org.readium.r2.shared.ExperimentalReadiumApi
 
 private val Context.readerDataStore: DataStore<Preferences> by preferencesDataStore(
@@ -42,6 +44,12 @@ class ReaderSettingsStore(context: Context) {
      */
     private val pdfNightKey = booleanPreferencesKey("pdf_night_mode")
 
+    /** Тема чтения своя, не общая с приложением: сепия есть только здесь. */
+    private val themeKey = stringPreferencesKey("reader_theme")
+
+    /** Яркость подсветки, 0..1; -1 означает «как в системе». */
+    private val brightnessKey = floatPreferencesKey("reader_brightness")
+
     private val epubSerializer = EpubPreferencesSerializer()
     private val pdfSerializer = PdfiumPreferencesSerializer()
 
@@ -62,6 +70,27 @@ class ReaderSettingsStore(context: Context) {
     val pdfNightMode: Flow<Boolean> =
         appContext.readerDataStore.data.map { it[pdfNightKey] ?: false }
 
+    val theme: Flow<ReaderTheme> = appContext.readerDataStore.data.map { preferences ->
+        preferences[themeKey]
+            ?.let { name -> runCatching { ReaderTheme.valueOf(name) }.getOrNull() }
+            ?: ReaderTheme.LIGHT
+    }
+
+    suspend fun currentTheme(): ReaderTheme = theme.first()
+
+    suspend fun saveTheme(theme: ReaderTheme) {
+        appContext.readerDataStore.edit { it[themeKey] = theme.name }
+    }
+
+    val brightness: Flow<Float> =
+        appContext.readerDataStore.data.map { it[brightnessKey] ?: SYSTEM_BRIGHTNESS }
+
+    suspend fun currentBrightness(): Float = brightness.first()
+
+    suspend fun saveBrightness(value: Float) {
+        appContext.readerDataStore.edit { it[brightnessKey] = value }
+    }
+
     suspend fun currentPdfNightMode(): Boolean = pdfNightMode.first()
 
     suspend fun savePdfNightMode(enabled: Boolean) {
@@ -78,5 +107,10 @@ class ReaderSettingsStore(context: Context) {
 
     suspend fun savePdfPreferences(preferences: PdfiumPreferences) {
         appContext.readerDataStore.edit { it[pdfKey] = pdfSerializer.serialize(preferences) }
+    }
+
+    companion object {
+        /** Яркость как в системе: подсветку не трогаем. */
+        const val SYSTEM_BRIGHTNESS = -1f
     }
 }

@@ -20,6 +20,7 @@ import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Axis
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.TextAlign
+import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 
@@ -32,6 +33,8 @@ sealed interface ReaderState {
 /** Что показывает нижняя панель. */
 data class ReadingPosition(
     val progress: Float,
+    /** Название текущей главы — его показывает верхняя панель. */
+    val chapter: String? = null,
     /** Оценка оставшегося времени в минутах; null, пока считать не из чего. */
     val minutesLeft: Int?,
     /**
@@ -72,6 +75,13 @@ class ReaderViewModel(
     private val _pdfPreferences = MutableStateFlow(PdfiumPreferences())
     val pdfPreferences: StateFlow<PdfiumPreferences> = _pdfPreferences.asStateFlow()
 
+    /**
+     * Тема чтения. Своя, не общая с приложением: сепия есть только здесь,
+     * и переключается она в настройках чтения, а не в системе.
+     */
+    private val _theme = MutableStateFlow(ReaderTheme.LIGHT)
+    val theme: StateFlow<ReaderTheme> = _theme.asStateFlow()
+
     private val _pdfNightMode = MutableStateFlow(false)
     val pdfNightMode: StateFlow<Boolean> = _pdfNightMode.asStateFlow()
 
@@ -87,9 +97,13 @@ class ReaderViewModel(
         bookId = id
 
         viewModelScope.launch {
-            _epubPreferences.value = readerDefaults(settingsStore.currentEpubPreferences())
+            _theme.value = settingsStore.currentTheme()
+            _epubPreferences.value = withTheme(
+                readerDefaults(settingsStore.currentEpubPreferences()),
+                _theme.value,
+            )
             _pdfPreferences.value = pdfDefaults(settingsStore.currentPdfPreferences())
-            _pdfNightMode.value = settingsStore.currentPdfNightMode()
+            _pdfNightMode.value = _theme.value == ReaderTheme.DARK
 
             val book = bookStore.get(id)
             if (book == null) {
@@ -134,7 +148,7 @@ class ReaderViewModel(
             totalPositions = pdfPageCount ?: content.totalPositions,
             engine = content.engine,
             position = pdfPage ?: locator.locations.position,
-        )
+        ).copy(chapter = locator.title?.trim()?.takeIf { it.isNotEmpty() })
 
         // След в логе: если место чтения однажды снова начнёт теряться,
         // будет видно, какой книге, какое значение и из какого локатора.
@@ -174,6 +188,30 @@ class ReaderViewModel(
         _pdfPreferences.value = pdfDefaults(preferences)
         viewModelScope.launch { settingsStore.savePdfPreferences(_pdfPreferences.value) }
     }
+
+    /**
+     * Тема чтения одна на все книги: и фон страницы, и цвет панелей.
+     * У EPUB её применяет Readium, у PDF — ночной режим самого PDFView.
+     */
+    fun setTheme(theme: ReaderTheme) {
+        _theme.value = theme
+        _epubPreferences.value = withTheme(_epubPreferences.value, theme)
+        _pdfNightMode.value = theme == ReaderTheme.DARK
+        viewModelScope.launch {
+            settingsStore.saveTheme(theme)
+            settingsStore.saveEpubPreferences(_epubPreferences.value)
+            settingsStore.savePdfNightMode(_pdfNightMode.value)
+        }
+    }
+
+    private fun withTheme(preferences: EpubPreferences, theme: ReaderTheme): EpubPreferences =
+        preferences.copy(
+            theme = when (theme) {
+                ReaderTheme.LIGHT -> Theme.LIGHT
+                ReaderTheme.SEPIA -> Theme.SEPIA
+                ReaderTheme.DARK -> Theme.DARK
+            },
+        )
 
     fun setPdfNightMode(enabled: Boolean) {
         _pdfNightMode.value = enabled

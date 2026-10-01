@@ -6,18 +6,38 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.text.style.TextAlign
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.bibliarium.app.R
 import com.bibliarium.app.appContainer
 import com.bibliarium.app.ui.rating.RatingSurveyActivity
+import com.bibliarium.app.ui.theme.BibliariumTheme
 import com.github.barteksc.pdfviewer.PDFView
 import java.io.File
 import kotlinx.coroutines.flow.collectLatest
@@ -39,14 +59,13 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 /**
  * Экран чтения.
  *
- * Содержимое книги показывает навигатор Readium — это фрагмент. Панели
- * сделаны обычными View по образцу демо-приложения Readium (BSD 3-Clause,
- * копия лицензии в licenses/). Наложение на Compose поверх фрагмента
- * перерисовывалось не всегда, и человек оставался на экране «Открываем
- * книгу…» без единой кнопки.
+ * Страницу книги показывает навигатор Readium — это фрагмент и обычная View.
+ * Панели поверх него собраны на Compose: лист настроек, выезжающее
+ * оглавление и ползунок с подсказкой иначе обошлись бы втрое дороже.
  *
- * Панели показаны сразу после открытия и прячутся тапом по центру:
- * застрять в книге без выхода нельзя.
+ * Системные отступы ставятся здесь: страница книги отодвигается от часов
+ * сверху и от полосы жеста снизу, а панели — через windowInsetsPadding.
+ * Без этого на телефоне с вырезом первая строка уходит под часы.
  */
 @OptIn(ExperimentalReadiumApi::class)
 class ReaderActivity : AppCompatActivity() {
@@ -55,19 +74,10 @@ class ReaderActivity : AppCompatActivity() {
         ReaderViewModel.factory(appContainer)
     }
 
-    private lateinit var topBar: View
-    private lateinit var bottomBar: View
-    private lateinit var status: View
-    private lateinit var statusText: TextView
-    private lateinit var titleView: TextView
-    private lateinit var progressView: TextView
-    private lateinit var tocButton: Button
-
     private var navigator: Navigator? = null
     private var pdfView: PDFView? = null
     private var pdfThumbnails: PdfPageThumbnails? = null
     private var content: ReaderContent? = null
-    private var panelsVisible = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Намеренно не отдаём системе сохранённое состояние фрагментов:
@@ -75,23 +85,11 @@ class ReaderActivity : AppCompatActivity() {
         // процесса её ещё нет. Позиция чтения лежит в базе, и книга
         // открывается ровно на ней.
         super.onCreate(null)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_reader)
 
-        topBar = findViewById(R.id.reader_top_bar)
-        bottomBar = findViewById(R.id.reader_bottom_bar)
-        status = findViewById(R.id.reader_status)
-        statusText = findViewById(R.id.reader_status_text)
-        titleView = findViewById(R.id.reader_title)
-        progressView = findViewById(R.id.reader_progress)
-        tocButton = findViewById(R.id.reader_toc)
-
-        findViewById<Button>(R.id.reader_back).setOnClickListener { finish() }
-        findViewById<Button>(R.id.reader_status_close).setOnClickListener { finish() }
-        tocButton.setOnClickListener { showTableOfContents() }
-        findViewById<Button>(R.id.reader_settings).setOnClickListener { showSettings() }
-
-        showStatus(getString(R.string.reader_loading))
-        setPanelsVisible(false)
+        applyInsetsToPage()
+        setUpOverlay()
 
         val bookId = intent.getStringExtra(EXTRA_BOOK_ID)
         if (bookId == null) {
@@ -101,31 +99,147 @@ class ReaderActivity : AppCompatActivity() {
 
         viewModel.open(bookId, intent.getStringExtra(EXTRA_LOCATOR))
         observeState()
-        observePosition()
         observeSurvey()
+        observeTheme()
+    }
+
+    /**
+     * Страница книги отодвигается от системных панелей.
+     *
+     * Панели поверх неё полупрозрачные и текст перекрывают — так и в макете,
+     * но под часы и под полосу жеста текст заходить не должен никогда.
+     */
+    private fun applyInsetsToPage() {
+        val page = findViewById<View>(R.id.reader_container)
+        ViewCompat.setOnApplyWindowInsetsListener(page) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            view.updatePadding(top = bars.top, bottom = bars.bottom)
+            insets
+        }
+    }
+
+    private fun setUpOverlay() {
+        findViewById<ComposeView>(R.id.reader_overlay).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                BibliariumTheme {
+                    val state by viewModel.state.collectAsStateWithLifecycle()
+                    val position by viewModel.position.collectAsStateWithLifecycle()
+                    val theme by viewModel.theme.collectAsStateWithLifecycle()
+                    val palette = ReaderPalette.of(theme)
+                    var panelsVisible by remember { mutableStateOf(false) }
+
+                    // Экран слушает просьбы показать или спрятать панели:
+                    // их шлёт обработчик тапа по центральной трети.
+                    panelsRequest = { panelsVisible = it }
+                    panelsState = { panelsVisible }
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        when (val current = state) {
+                            is ReaderState.Loading -> Status(
+                                text = stringOf(R.string.reader_loading),
+                                palette = palette,
+                            )
+
+                            is ReaderState.Failed -> Status(
+                                text = describe(current.error),
+                                palette = palette,
+                                onClose = ::finish,
+                            )
+
+                            is ReaderState.Ready -> ReaderChrome(
+                                visible = panelsVisible,
+                                palette = palette,
+                                title = current.content.book.title,
+                                chapter = position.chapter,
+                                progressLabel = progressLabel(position),
+                                progress = position.progress,
+                                actions = actionsFor(current.content),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Надпись вместо книги: пока открывается и когда открыть не вышло. */
+    @androidx.compose.runtime.Composable
+    private fun Status(text: String, palette: ReaderPalette, onClose: (() -> Unit)? = null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(palette.background)
+                .padding(BibliariumTheme.spacing.xl),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = text,
+                style = BibliariumTheme.type.bodyMd,
+                color = palette.text,
+                textAlign = TextAlign.Center,
+            )
+            onClose?.let {
+                TextButton(onClick = it) {
+                    Text(
+                        text = stringOf(R.string.reader_back),
+                        style = BibliariumTheme.type.labelLg,
+                        color = palette.accent,
+                    )
+                }
+            }
+        }
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun stringOf(id: Int): String = androidx.compose.ui.res.stringResource(id)
+
+    private fun actionsFor(content: ReaderContent): ReaderActions = ReaderActions(
+        onBack = ::finish,
+        onToc = { showTableOfContents() },
+        onBookmark = { /* закладки появятся вместе с выделениями */ },
+        onHighlight = { /* выделение появится в своей части */ },
+        onSettings = { showSettings() },
+        onSearch = { /* поиск по книге появится в своей части */ },
+        searchAvailable = content.engine == ReaderEngine.EPUB,
+    )
+
+    /** Показать или спрятать панели просит обработчик тапа. */
+    private var panelsRequest: (Boolean) -> Unit = {}
+    private var panelsState: () -> Boolean = { false }
+
+    private fun togglePanels() {
+        panelsRequest(!panelsState())
+    }
+
+    private fun setPanelsVisible(visible: Boolean) {
+        panelsRequest(visible)
     }
 
     private fun observeState() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collectLatest { state ->
-                    when (state) {
-                        is ReaderState.Loading ->
-                            showStatus(getString(R.string.reader_loading))
+                    if (state !is ReaderState.Ready) return@collectLatest
+                    if (navigator == null) installNavigator(state.content)
+                    content = state.content
+                }
+            }
+        }
+    }
 
-                        is ReaderState.Failed ->
-                            showStatus(describe(state.error))
-
-                        is ReaderState.Ready -> {
-                            if (navigator == null) {
-                                installNavigator(state.content)
-                            }
-                            content = state.content
-                            titleView.text = state.content.book.title
-                            setUpTocButton(state.content)
-                            hideStatus()
-                            setPanelsVisible(true)
-                        }
+    /** Цвет значков системных панелей — по теме чтения, а не наугад. */
+    private fun observeTheme() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.theme.collectLatest { theme ->
+                    val light = !ReaderPalette.of(theme).lightSystemIcons
+                    WindowCompat.getInsetsController(window, window.decorView).apply {
+                        isAppearanceLightStatusBars = light
+                        isAppearanceLightNavigationBars = light
                     }
                 }
             }
@@ -145,18 +259,8 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
-    private fun observePosition() {
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.position.collectLatest { position ->
-                    progressView.text = progressLabel(position)
-                }
-            }
-        }
-    }
-
     private fun progressLabel(position: ReadingPosition): String {
-        val percent = (position.progress * 100).toInt()
+        val percent = (position.progress * PERCENT).toInt()
 
         // У PDF страница настоящая, и её номер человеку виден и полезен.
         val page = position.page
@@ -232,10 +336,6 @@ class ReaderActivity : AppCompatActivity() {
 
     /**
      * Левая треть — назад, правая — вперёд, центральная — панели.
-     *
-     * Края отданы DirectionalNavigationAdapter: он уже умеет листать с учётом
-     * направления письма. Порог в треть задаётся здесь, минимальный размер
-     * края обнуляется — иначе на узком экране края вышли бы за треть.
      */
     private fun attachGestures(fragment: Fragment) {
         val overflowable = fragment as? OverflowableNavigator ?: return
@@ -267,7 +367,7 @@ class ReaderActivity : AppCompatActivity() {
                             }
 
                         else -> {
-                            setPanelsVisible(!panelsVisible)
+                            togglePanels()
                             true
                         }
                     }
@@ -317,46 +417,7 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
-    // --- панели ------------------------------------------------------------
-
-    private fun setPanelsVisible(visible: Boolean) {
-        panelsVisible = visible
-        val mode = if (visible) View.VISIBLE else View.GONE
-        topBar.visibility = mode
-        bottomBar.visibility = mode
-    }
-
-    private fun showStatus(text: String) {
-        statusText.text = text
-        status.visibility = View.VISIBLE
-    }
-
-    private fun hideStatus() {
-        status.visibility = View.GONE
-    }
-
-    /**
-     * Кнопка называет то, что откроется: у книги с оглавлением — «Оглавление»,
-     * у PDF без закладок — «Страницы». Серую кнопку или пустое окно человек
-     * читает как поломку, а PDF без закладок — обычное дело: скан это картинки,
-     * структуры внутри нет.
-     */
-    private fun setUpTocButton(content: ReaderContent) {
-        val hasToc = content.tableOfContents.isNotEmpty()
-        when {
-            hasToc -> {
-                tocButton.setText(R.string.reader_toc)
-                tocButton.visibility = View.VISIBLE
-            }
-
-            content.engine == ReaderEngine.PDF -> {
-                tocButton.setText(R.string.reader_pages)
-                tocButton.visibility = View.VISIBLE
-            }
-
-            else -> tocButton.visibility = View.GONE
-        }
-    }
+    // --- оглавление и настройки -------------------------------------------
 
     private fun showTableOfContents() {
         val current = content ?: return
@@ -429,9 +490,9 @@ class ReaderActivity : AppCompatActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.pdfNightMode.collectLatest { night ->
-                    val pdfView = fragment.view?.findFirstPdfView() ?: return@collectLatest
-                    pdfView.setNightMode(night)
-                    pdfView.invalidate()
+                    val view = fragment.view?.findFirstPdfView() ?: return@collectLatest
+                    view.setNightMode(night)
+                    view.invalidate()
                 }
             }
         }
@@ -473,6 +534,7 @@ class ReaderActivity : AppCompatActivity() {
         private const val TAG = "navigator"
         private const val GESTURE_TAG = "BibliariumReader"
         private const val MINUTES_IN_HOUR = 60
+        private const val PERCENT = 100
 
         /**
          * [locator] задаёт место, с которого открыть книгу: по нему приходят

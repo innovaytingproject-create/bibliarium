@@ -85,14 +85,20 @@ class ShelfTest {
         openShelf()
         device.wait(Until.findObject(By.desc(book.title)), UI_TIMEOUT)
 
-        device.findObject(By.desc("Сетка")).click()
+        // На Android 15 полка успевала показаться позже, чем мы хватали
+        // кнопку, и проверка падала на null вместо внятного сообщения.
+        val toGrid = device.wait(Until.findObject(By.desc("Сетка")), UI_TIMEOUT)
+        assertNotNull("На полке нет кнопки переключения в сетку", toGrid)
+        toGrid.click()
         assertTrue(
             "После переключения в сетку названия книг не показались",
             device.wait(Until.hasObject(By.text(book.title)), UI_TIMEOUT),
         )
         settledScreenshot("shelf-grid")
 
-        device.findObject(By.desc("Корешки")).click()
+        val toSpines = device.wait(Until.findObject(By.desc("Корешки")), UI_TIMEOUT)
+        assertNotNull("В сетке нет кнопки возврата к корешкам", toSpines)
+        toSpines.click()
         assertNotNull(
             "Не вернулись к корешкам",
             device.wait(Until.findObject(By.desc(book.title)), UI_TIMEOUT),

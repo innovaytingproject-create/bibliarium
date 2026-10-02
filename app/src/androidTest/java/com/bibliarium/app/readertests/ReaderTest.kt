@@ -227,7 +227,8 @@ class ReaderTest {
         settledScreenshot("reader-fb2-end")
         assertTrue(
             "За $MAX_PAGES тапов книга не долистана до конца: " +
-                "«$LAST_CHAPTER_TEXT» так и не показался",
+                "«$LAST_CHAPTER_TEXT» так и не показался. " +
+                "На экране: ${screenMessage()}",
             reachedEnd,
         )
     }
@@ -403,7 +404,9 @@ class ReaderTest {
         const val TAP_SETTLE_MS = 700L
         const val SCREENSHOT_SETTLE_MS = 1_500L
         const val MAX_TAPS = 8
-        const val MAX_PAGES = 30
+        // Сколько в книге страниц, зависит от шрифта и размера экрана:
+        // на Android 15 той же книги хватило не на 30 экранов, а больше.
+        const val MAX_PAGES = 70
         const val LAST_CHAPTER_TEXT = "Текст третьей главы"
     }
 }

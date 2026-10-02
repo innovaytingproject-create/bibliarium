@@ -207,7 +207,13 @@ fun SpineFace(
     }
 }
 
-private fun DrawScope.drawSpine(
+/**
+ * Видимость шире `private` намеренно: проба `SpineCostProbeTest` вызывает
+ * эту и соседние рисовалки напрямую и замеряет, сколько стоит каждая часть
+ * корешка. Иначе замер пришлось бы делать на копии кода, а копия меряет
+ * себя, а не нас.
+ */
+internal fun DrawScope.drawSpine(
     title: String,
     author: String?,
     look: SpineLook,
@@ -259,7 +265,7 @@ private fun DrawScope.drawSpine(
  * если после названия осталось место: втиснутая в край строка читается хуже,
  * чем её отсутствие.
  */
-private fun DrawScope.drawSpineText(
+internal fun DrawScope.drawSpineText(
     title: String,
     author: String?,
     titleStyle: TextStyle,
@@ -326,7 +332,7 @@ private fun DrawScope.drawSpineText(
  * Шаблоны Archive. Каждый заметно отличается от соседнего: иначе вся полка
  * выглядит набранной по одному лекалу.
  */
-private fun DrawScope.drawPattern(look: SpineLook, inset: Float, ornamentAtTop: Boolean) {
+internal fun DrawScope.drawPattern(look: SpineLook, inset: Float, ornamentAtTop: Boolean) {
     val ink = look.ink
     val top = size.height * TOP_RULE
     val bottom = size.height * (1 - TOP_RULE)
@@ -401,7 +407,7 @@ private fun DrawScope.drawFrame(ink: Color, inset: Float) {
  * Значки рисуются векторно, а не иконочным шрифтом: шрифт пришлось бы тащить
  * отдельным файлом, а рисунок здесь и так на Canvas.
  */
-private fun DrawScope.drawOrnament(
+internal fun DrawScope.drawOrnament(
     ornament: SpineOrnament,
     center: Offset,
     side: Float,

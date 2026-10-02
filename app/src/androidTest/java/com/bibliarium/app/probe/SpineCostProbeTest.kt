@@ -15,8 +15,6 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.createFontFamilyResolver
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -26,12 +24,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.bibliarium.app.R
 import com.bibliarium.app.TestArtifacts
+import com.bibliarium.app.ui.shelf.SpineDrawing
 import com.bibliarium.app.ui.shelf.SpineLook
 import com.bibliarium.app.ui.shelf.SpineOrnament
 import com.bibliarium.app.ui.shelf.drawOrnament
 import com.bibliarium.app.ui.shelf.drawPattern
 import com.bibliarium.app.ui.shelf.drawSpine
 import com.bibliarium.app.ui.shelf.drawSpineText
+import com.bibliarium.app.ui.shelf.prepareSpine
 import com.bibliarium.app.ui.theme.SpineStyleTokens
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,18 +39,19 @@ import org.junit.runner.RunWith
 /**
  * Куда уходит время при отрисовке корешка.
  *
- * На полке из 500 книг `dumpsys gfxinfo` показал 16 % пропущенных кадров,
- * причём видеокарта простаивала (90-й процентиль кадра 19 мс против 11 мс
- * у видеокарты), а пропуски помечены как «медленный поток интерфейса». То
- * есть время уходит на процессоре, в самой отрисовке. Эта проба отвечает,
+ * На полке из 500 книг `dumpsys gfxinfo` показал пропуски кадров, причём
+ * видеокарта простаивала, а пропуски помечены «медленный поток интерфейса».
+ * То есть время уходит на процессоре, в самой отрисовке. Эта проба отвечает,
  * в какой её части.
+ *
+ * Главное деление здесь — раскладка против отрисовки. Раскладка считается
+ * один раз на книгу и размер: `prepareSpine` живёт в `drawWithCache`.
+ * Отрисовка повторяется на каждом кадре, и укладываться в бюджет кадра
+ * должна именно она.
  *
  * Рисуем в заранее созданные Bitmap, то есть программно: считается ровно
  * работа процессора, из-за которой пропускаются кадры, и ничего больше —
  * ни выделение памяти под картинки, ни работа видеокарты.
- *
- * Проба ничего не чинит и ничего не требует: её дело — назвать цифры, по
- * которым потом решать, за что браться.
  */
 @RunWith(AndroidJUnit4::class)
 class SpineCostProbeTest {
@@ -115,51 +116,18 @@ class SpineCostProbeTest {
         Canvas(bitmap.asImageBitmap()) to Size(width.toFloat(), height.toFloat())
     }
 
+    /** Готовая раскладка — то, что в приложении лежит в кэше отрисовки. */
+    private val prepared: List<SpineDrawing> = looks.mapIndexed { index, look ->
+        prepare(index, look, surfaces[index].second)
+    }
+
     @Test
     fun whereTheTimeGoesWhenASpineIsDrawn() {
-        val whole = time { index, look, size ->
-            drawSpine(
-                title = titles[index],
-                author = authors[index],
-                look = look,
-                style = style,
-                titleStyle = titleStyle,
-                authorStyle = authorStyle,
-                measurer = measurer,
-            )
-        }
-        val text = time { index, _, size ->
-            drawSpineText(
-                title = titles[index],
-                author = authors[index],
-                titleStyle = titleStyle,
-                authorStyle = authorStyle,
-                measurer = measurer,
-                inset = size.width * INSET_SHARE,
-                ornamentSize = ornamentSizeOf(size),
-            )
-        }
+        val layout = time { index, look, size -> prepare(index, look, size) }
+        val frame = time { index, look, _ -> drawSpine(look, style, prepared[index]) }
 
-        // Раскладка без рисования: именно она повторяется на каждом кадре
-        // для каждого корешка, и именно её можно посчитать заранее.
-        val layout = time { index, _, size ->
-            val along = alongOf(size)
-            if (along > 0) {
-                measurer.measure(
-                    text = titles[index],
-                    style = titleStyle,
-                    maxLines = if (size.width >= WIDE_WIDTH.dp.toPx()) TITLE_LINES else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    constraints = Constraints(maxWidth = along),
-                )
-                measurer.measure(
-                    text = authors[index],
-                    style = authorStyle,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    constraints = Constraints(maxWidth = along),
-                )
-            }
+        val text = time { index, _, size ->
+            drawSpineText(prepared[index], size.width * INSET_SHARE)
         }
         val pattern = time { _, look, size ->
             drawPattern(look, size.width * INSET_SHARE, ornamentAtTop = true)
@@ -172,53 +140,25 @@ class SpineCostProbeTest {
                 look.ink,
             )
         }
-        val edge = time { _, _, _ ->
-            drawRect(
-                Brush.horizontalGradient(
-                    0f to style.highlight,
-                    EDGE_STOP to Color.Transparent,
-                    1f - EDGE_STOP to Color.Transparent,
-                    1f to style.shade,
-                ),
-            )
-        }
+        val edge = time { _, _, _ -> drawRect(EDGE_PROBE) }
         val fill = time { _, look, _ -> drawRect(look.color) }
 
-        // Целое меряется второй раз, последним. Первый замер идёт по
-        // непрогретому коду, и если части не сходятся с целым, разница
-        // должна быть видна в отчёте, а не замазана.
-        val wholeAgain = time { index, look, _ ->
-            drawSpine(
-                title = titles[index],
-                author = authors[index],
-                look = look,
-                style = style,
-                titleStyle = titleStyle,
-                authorStyle = authorStyle,
-                measurer = measurer,
-            )
-        }
-        val parts = text + pattern + ornament + edge + fill
-
         val report = buildString {
-            appendLine("Отрисовка корешка, микросекунды на штуку (среднее по $SPINES корешкам)")
+            appendLine("Корешок, микросекунды на штуку (среднее по $SPINES корешкам)")
             appendLine()
-            appendLine(row("целиком", whole))
+            appendLine(row("раскладка (один раз)", layout))
+            appendLine(row("отрисовка (каждый кадр)", frame))
             appendLine(row("  текст", text))
-            appendLine(row("    из него раскладка", layout))
-            appendLine(row("    из него буквы", text - layout))
             appendLine(row("  узор", pattern))
             appendLine(row("  значок", ornament))
-            appendLine(row("  грань (градиент)", edge))
+            appendLine(row("  грань", edge))
             appendLine(row("  заливка", fill))
-            appendLine()
-            appendLine(row("сумма частей", parts))
-            appendLine(row("целиком, второй замер", wholeAgain))
+            appendLine(row("  сумма частей", text + pattern + ornament + edge + fill))
             appendLine()
             appendLine(
-                "При 60 кадрах в секунду на кадр есть 16 600 мкс, " +
-                    "и на экране разом около $ON_SCREEN корешков: " +
-                    "${wholeAgain * ON_SCREEN} мкс на один проход отрисовки.",
+                "При 60 кадрах в секунду на кадр есть 16 600 мкс, и на экране разом " +
+                    "около $ON_SCREEN корешков: ${frame * ON_SCREEN} мкс на кадр. " +
+                    "Раскладка в кадр не входит — она лежит в кэше отрисовки.",
             )
         }
 
@@ -229,11 +169,24 @@ class SpineCostProbeTest {
 
     // --- вспомогательное ---------------------------------------------------
 
+    private fun prepare(index: Int, look: SpineLook, size: Size): SpineDrawing = prepareSpine(
+        title = titles[index],
+        author = authors[index],
+        look = look,
+        style = style,
+        titleStyle = titleStyle,
+        authorStyle = authorStyle,
+        measurer = measurer,
+        density = density,
+        size = size,
+    )
+
     /**
-     * Среднее время одной отрисовки в микросекундах.
+     * Среднее время одного вызова в микросекундах.
      *
-     * Первые проходы выбрасываются: на них грузятся шрифты и греются кэши,
-     * а мерить надо прокрутку, а не первый показ полки.
+     * Первые проходы выбрасываются: на них грузятся шрифты и греется JIT.
+     * Без этого первый же замер завышал себя втрое и не сходился с суммой
+     * частей.
      */
     private fun time(draw: DrawScope.(index: Int, look: SpineLook, size: Size) -> Unit): Long {
         repeat(WARMUPS) { pass(draw) }
@@ -252,14 +205,6 @@ class SpineCostProbeTest {
         }
     }
 
-    /** Как в настоящем корешке: значок ограничен высотой, а не шириной. */
-    private fun ornamentSizeOf(size: Size): Float =
-        minOf(size.width * ORNAMENT_SHARE, size.height * ORNAMENT_MAX_SHARE)
-
-    /** Длина строки вдоль корешка — ровно как её считает drawSpineText. */
-    private fun alongOf(size: Size): Int =
-        (size.height - size.width * INSET_SHARE * TITLE_MARGIN - ornamentSizeOf(size) * 2).toInt()
-
     private fun row(name: String, microseconds: Long): String =
         name.padEnd(NAME_WIDTH) + microseconds.toString().padStart(VALUE_WIDTH)
 
@@ -267,7 +212,7 @@ class SpineCostProbeTest {
         const val SPINES = 40
         const val WARMUPS = 2
         const val ROUNDS = 8
-        const val NAME_WIDTH = 24
+        const val NAME_WIDTH = 26
         const val VALUE_WIDTH = 6
         const val NANOS_IN_MICRO = 1_000
 
@@ -283,14 +228,20 @@ class SpineCostProbeTest {
         const val CORNER = 3
         const val INSET_SHARE = 0.18f
         const val ORNAMENT_SHARE = 0.34f
-        const val ORNAMENT_MAX_SHARE = 0.06f
-        const val TITLE_MARGIN = 3f
-        const val WIDE_WIDTH = 50
-        const val TITLE_LINES = 2
-        const val EDGE_STOP = 0.18f
         const val HIGHLIGHT_ALPHA = 0.10f
         const val SHADE_ALPHA = 0.18f
         const val AUTHOR_ALPHA = 0.75f
+
+        /**
+         * Кисть грани теперь готовится заранее, вместе с раскладкой: в кадре
+         * остаётся только залить ею прямоугольник.
+         */
+        val EDGE_PROBE = Brush.horizontalGradient(
+            0f to Color.White.copy(alpha = HIGHLIGHT_ALPHA),
+            EDGE_STOP to Color.Transparent,
+            1f - EDGE_STOP to Color.Transparent,
+            1f to Color.Black.copy(alpha = SHADE_ALPHA),
+        )
 
         /** Примерно столько корешков видно на экране телефона разом. */
         const val ON_SCREEN = 24
@@ -304,3 +255,5 @@ class SpineCostProbeTest {
         )
     }
 }
+
+private const val EDGE_STOP = 0.18f

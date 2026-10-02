@@ -1,7 +1,7 @@
 package com.bibliarium.app.ui.shelf
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -9,6 +9,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
@@ -27,6 +29,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.bibliarium.app.ui.theme.BibliariumTheme
@@ -188,24 +191,122 @@ fun SpineFace(
     val authorStyle = BibliariumTheme.type.spineMeta.copy(color = look.ink.copy(alpha = META_ALPHA))
     val measurer = rememberTextMeasurer()
 
-    Canvas(
+    // Системный размер шрифта живёт здесь: при его смене меняется density,
+    // а значит и лямбда ниже, а значит раскладка считается заново. Если
+    // density не читать здесь, а взять изнутри отрисовки, крупный шрифт
+    // человека останется с раскладкой от мелкого — и название обрежется.
+    val density = LocalDensity.current
+
+    Spacer(
         modifier = modifier
             .clip(RoundedCornerShape(style.corner))
             // Название нужно и человеку с озвучкой, и проверке: нарисованный
-            // Canvas текстом наружу не виден.
-            .semantics { contentDescription = title },
-    ) {
-        drawSpine(
-            title = title,
-            author = author,
-            look = look,
-            style = style,
-            titleStyle = titleStyle,
-            authorStyle = authorStyle,
-            measurer = measurer,
-        )
-    }
+            // холст текстом наружу не виден.
+            .semantics { contentDescription = title }
+            // drawWithCache, а не drawBehind: раскладка текста считается один
+            // раз на книгу и размер, а не на каждом кадре. Она же и была
+            // главной ценой корешка — 339 мкс из 532 по замеру.
+            .drawWithCache {
+                val prepared = prepareSpine(
+                    title = title,
+                    author = author,
+                    look = look,
+                    style = style,
+                    titleStyle = titleStyle,
+                    authorStyle = authorStyle,
+                    measurer = measurer,
+                    density = density,
+                    size = size,
+                )
+                onDrawBehind { drawSpine(look, style, prepared) }
+            },
+    )
 }
+
+/**
+ * Всё про корешок, что не зависит от самого кадра: раскладка названия и
+ * автора и кисть боковой грани.
+ *
+ * Считается при смене книги, размера корешка или системного шрифта — то
+ * есть редко, — а не при каждой отрисовке.
+ */
+@Immutable
+class SpineDrawing internal constructor(
+    internal val titleLayout: TextLayoutResult?,
+    internal val authorLayout: TextLayoutResult?,
+    internal val edge: Brush?,
+)
+
+/**
+ * Раскладка корешка.
+ *
+ * [density] передаётся отдельно, а не берётся из места отрисовки: в нём
+ * сидит системный размер шрифта, и именно от него зависит, сколько строк
+ * займёт название.
+ */
+internal fun prepareSpine(
+    title: String,
+    author: String?,
+    look: SpineLook,
+    style: SpineStyleTokens,
+    titleStyle: TextStyle,
+    authorStyle: TextStyle,
+    measurer: TextMeasurer,
+    density: Density,
+    size: Size,
+): SpineDrawing {
+    val edge = if (style.embossed) {
+        // Цилиндр: слева светлая грань, справа затенённая. Из DESIGN.md.
+        Brush.horizontalGradient(
+            0f to style.highlight,
+            EDGE_STOP to Color.Transparent,
+            1f - EDGE_STOP to Color.Transparent,
+            1f to style.shade,
+        )
+    } else {
+        null
+    }
+
+    val inset = size.width * INSET_SHARE
+    val along = (size.height - inset * TITLE_MARGIN - ornamentSizeOf(size) * 2).toInt()
+    if (along <= 0) return SpineDrawing(null, null, edge)
+
+    val across = size.width - inset * 2
+    val wide = size.width >= with(density) { WIDE_WIDTH.dp.toPx() }
+
+    val titleLayout = measurer.measure(
+        text = title,
+        style = titleStyle,
+        maxLines = if (wide) TITLE_LINES_WIDE else 1,
+        overflow = TextOverflow.Ellipsis,
+        constraints = Constraints(maxWidth = along),
+        density = density,
+    )
+
+    val authorLayout = author
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.let { text ->
+            measurer.measure(
+                text = text,
+                style = authorStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                constraints = Constraints(maxWidth = along),
+                density = density,
+            )
+        }
+        // Влезает — значит рисуем. Запас в целый отступ выкидывал автора
+        // почти со всех корешков, кроме самых широких.
+        ?.takeIf { it.size.height + titleLayout.size.height <= across }
+
+    return SpineDrawing(titleLayout, authorLayout, edge)
+}
+
+/** Значок считается от ширины, но высота ставит ему предел: на растянутом
+ * корешке обложки он иначе раздувался в половину картинки. */
+private fun ornamentSizeOf(size: Size): Float =
+    minOf(size.width * ORNAMENT_SHARE, size.height * ORNAMENT_MAX_SHARE)
 
 /**
  * Видимость шире `private` намеренно: проба `SpineCostProbeTest` вызывает
@@ -214,32 +315,15 @@ fun SpineFace(
  * себя, а не нас.
  */
 internal fun DrawScope.drawSpine(
-    title: String,
-    author: String?,
     look: SpineLook,
     style: SpineStyleTokens,
-    titleStyle: TextStyle,
-    authorStyle: TextStyle,
-    measurer: TextMeasurer,
+    prepared: SpineDrawing,
 ) {
     drawRect(look.color)
-
-    if (style.embossed) {
-        // Цилиндр: слева светлая грань, справа затенённая. Из DESIGN.md.
-        drawRect(
-            Brush.horizontalGradient(
-                0f to style.highlight,
-                EDGE_STOP to Color.Transparent,
-                1f - EDGE_STOP to Color.Transparent,
-                1f to style.shade,
-            ),
-        )
-    }
+    prepared.edge?.let { drawRect(it) }
 
     val inset = size.width * INSET_SHARE
-    // На обложке корешок растянут, и значок, посчитанный от ширины,
-    // раздувался в половину картинки. Высота ставит ему предел.
-    val ornamentSize = minOf(size.width * ORNAMENT_SHARE, size.height * ORNAMENT_MAX_SHARE)
+    val ornamentSize = ornamentSizeOf(size)
     val ornamentAtTop = look.pattern % 2 == 1
     val ornamentCenter = Offset(
         x = size.width / 2,
@@ -254,55 +338,19 @@ internal fun DrawScope.drawSpine(
 
     look.ornament?.let { drawOrnament(it, ornamentCenter, ornamentSize, look.ink) }
 
-    drawSpineText(title, author, titleStyle, authorStyle, measurer, inset, ornamentSize)
+    drawSpineText(prepared, inset)
 }
 
 /**
  * Название вдоль корешка, автор — мельче и ниже.
  *
- * На широком корешке название переносится на две строки: обрезать его
- * многоточием стоит только тогда, когда иначе никак. Автор рисуется, только
- * если после названия осталось место: втиснутая в край строка читается хуже,
- * чем её отсутствие.
+ * Сюда приходит уже посчитанная раскладка: решение, сколько строк займёт
+ * название и влезает ли автор, принимается в prepareSpine. Здесь остаётся
+ * только нарисовать буквы.
  */
-internal fun DrawScope.drawSpineText(
-    title: String,
-    author: String?,
-    titleStyle: TextStyle,
-    authorStyle: TextStyle,
-    measurer: TextMeasurer,
-    inset: Float,
-    ornamentSize: Float,
-) {
-    val along = (size.height - inset * TITLE_MARGIN - ornamentSize * 2).toInt()
-    if (along <= 0) return
-
-    val across = size.width - inset * 2
-    val wide = size.width >= WIDE_WIDTH.dp.toPx()
-
-    val titleLayout: TextLayoutResult = measurer.measure(
-        text = title,
-        style = titleStyle,
-        maxLines = if (wide) TITLE_LINES_WIDE else 1,
-        overflow = TextOverflow.Ellipsis,
-        constraints = Constraints(maxWidth = along),
-    )
-
-    val authorLayout: TextLayoutResult? = author
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-        ?.let { text ->
-            measurer.measure(
-                text = text,
-                style = authorStyle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                constraints = Constraints(maxWidth = along),
-            )
-        }
-        // Влезает — значит рисуем. Запас в целый отступ выкидывал автора
-        // почти со всех корешков, кроме самых широких.
-        ?.takeIf { it.size.height + titleLayout.size.height <= across }
+internal fun DrawScope.drawSpineText(prepared: SpineDrawing, inset: Float) {
+    val titleLayout = prepared.titleLayout ?: return
+    val authorLayout = prepared.authorLayout
 
     val block = titleLayout.size.height +
         (authorLayout?.let { it.size.height + inset * AUTHOR_GAP } ?: 0f)

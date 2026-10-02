@@ -184,6 +184,22 @@ class SpineCostProbeTest {
         }
         val fill = time { _, look, _ -> drawRect(look.color) }
 
+        // Целое меряется второй раз, последним. Первый замер идёт по
+        // непрогретому коду, и если части не сходятся с целым, разница
+        // должна быть видна в отчёте, а не замазана.
+        val wholeAgain = time { index, look, _ ->
+            drawSpine(
+                title = titles[index],
+                author = authors[index],
+                look = look,
+                style = style,
+                titleStyle = titleStyle,
+                authorStyle = authorStyle,
+                measurer = measurer,
+            )
+        }
+        val parts = text + pattern + ornament + edge + fill
+
         val report = buildString {
             appendLine("Отрисовка корешка, микросекунды на штуку (среднее по $SPINES корешкам)")
             appendLine()
@@ -196,10 +212,13 @@ class SpineCostProbeTest {
             appendLine(row("  грань (градиент)", edge))
             appendLine(row("  заливка", fill))
             appendLine()
+            appendLine(row("сумма частей", parts))
+            appendLine(row("целиком, второй замер", wholeAgain))
+            appendLine()
             appendLine(
                 "При 60 кадрах в секунду на кадр есть 16 600 мкс, " +
                     "и на экране разом около $ON_SCREEN корешков: " +
-                    "${whole * ON_SCREEN} мкс на один проход отрисовки.",
+                    "${wholeAgain * ON_SCREEN} мкс на один проход отрисовки.",
             )
         }
 
@@ -248,7 +267,7 @@ class SpineCostProbeTest {
         const val SPINES = 40
         const val WARMUPS = 2
         const val ROUNDS = 8
-        const val NAME_WIDTH = 22
+        const val NAME_WIDTH = 24
         const val VALUE_WIDTH = 6
         const val NANOS_IN_MICRO = 1_000
 

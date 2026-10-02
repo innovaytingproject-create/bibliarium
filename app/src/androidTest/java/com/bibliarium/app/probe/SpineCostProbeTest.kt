@@ -148,7 +148,7 @@ class SpineCostProbeTest {
                 measurer.measure(
                     text = titles[index],
                     style = titleStyle,
-                    maxLines = if (size.width >= WIDE_WIDTH * density.density) TITLE_LINES else 1,
+                    maxLines = if (size.width >= WIDE_WIDTH.dp.toPx()) TITLE_LINES else 1,
                     overflow = TextOverflow.Ellipsis,
                     constraints = Constraints(maxWidth = along),
                 )

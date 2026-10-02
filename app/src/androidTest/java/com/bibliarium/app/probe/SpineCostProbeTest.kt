@@ -15,6 +15,8 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.createFontFamilyResolver
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -134,8 +136,30 @@ class SpineCostProbeTest {
                 authorStyle = authorStyle,
                 measurer = measurer,
                 inset = size.width * INSET_SHARE,
-                ornamentSize = size.width * ORNAMENT_SHARE,
+                ornamentSize = ornamentSizeOf(size),
             )
+        }
+
+        // Раскладка без рисования: именно она повторяется на каждом кадре
+        // для каждого корешка, и именно её можно посчитать заранее.
+        val layout = time { index, _, size ->
+            val along = alongOf(size)
+            if (along > 0) {
+                measurer.measure(
+                    text = titles[index],
+                    style = titleStyle,
+                    maxLines = if (size.width >= WIDE_WIDTH * density.density) TITLE_LINES else 1,
+                    overflow = TextOverflow.Ellipsis,
+                    constraints = Constraints(maxWidth = along),
+                )
+                measurer.measure(
+                    text = authors[index],
+                    style = authorStyle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    constraints = Constraints(maxWidth = along),
+                )
+            }
         }
         val pattern = time { _, look, size ->
             drawPattern(look, size.width * INSET_SHARE, ornamentAtTop = true)
@@ -165,6 +189,8 @@ class SpineCostProbeTest {
             appendLine()
             appendLine(row("целиком", whole))
             appendLine(row("  текст", text))
+            appendLine(row("    из него раскладка", layout))
+            appendLine(row("    из него буквы", text - layout))
             appendLine(row("  узор", pattern))
             appendLine(row("  значок", ornament))
             appendLine(row("  грань (градиент)", edge))
@@ -207,6 +233,14 @@ class SpineCostProbeTest {
         }
     }
 
+    /** Как в настоящем корешке: значок ограничен высотой, а не шириной. */
+    private fun ornamentSizeOf(size: Size): Float =
+        minOf(size.width * ORNAMENT_SHARE, size.height * ORNAMENT_MAX_SHARE)
+
+    /** Длина строки вдоль корешка — ровно как её считает drawSpineText. */
+    private fun alongOf(size: Size): Int =
+        (size.height - size.width * INSET_SHARE * TITLE_MARGIN - ornamentSizeOf(size) * 2).toInt()
+
     private fun row(name: String, microseconds: Long): String =
         name.padEnd(NAME_WIDTH) + microseconds.toString().padStart(VALUE_WIDTH)
 
@@ -230,6 +264,10 @@ class SpineCostProbeTest {
         const val CORNER = 3
         const val INSET_SHARE = 0.18f
         const val ORNAMENT_SHARE = 0.34f
+        const val ORNAMENT_MAX_SHARE = 0.06f
+        const val TITLE_MARGIN = 3f
+        const val WIDE_WIDTH = 50
+        const val TITLE_LINES = 2
         const val EDGE_STOP = 0.18f
         const val HIGHLIGHT_ALPHA = 0.10f
         const val SHADE_ALPHA = 0.18f
